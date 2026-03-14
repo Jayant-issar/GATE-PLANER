@@ -101,10 +101,8 @@ export default function MockTestsPage() {
     setMounted(true);
     const saved = localStorage.getItem('mock_tests_data');
     if (saved) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTests(JSON.parse(saved));
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setFormData(prev => ({ ...prev, date: format(new Date(), 'yyyy-MM-dd') }));
   }, []);
 

@@ -2,13 +2,13 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface ILecture extends Document {
   userId: mongoose.Types.ObjectId;
+  subjectId: mongoose.Types.ObjectId;
+  topicId?: mongoose.Types.ObjectId;
   title: string;
-  subjectId: string;
-  topicId: string;
   durationMinutes: number;
-  status: 'not_started' | 'in_progress' | 'completed';
+  status: 'pending' | 'in_progress' | 'completed';
   dateCompleted?: Date;
-  notesUrl?: string;
+  notes?: string;
   needsRevision: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -26,12 +26,13 @@ const LectureSchema: Schema = new Schema(
       required: true,
     },
     subjectId: {
-      type: String,
+      type: Schema.Types.ObjectId,
+      ref: 'Subject',
       required: true,
     },
     topicId: {
-      type: String,
-      required: true,
+      type: Schema.Types.ObjectId,
+      ref: 'Topic',
     },
     durationMinutes: {
       type: Number,
@@ -39,13 +40,13 @@ const LectureSchema: Schema = new Schema(
     },
     status: {
       type: String,
-      enum: ['not_started', 'in_progress', 'completed'],
-      default: 'not_started',
+      enum: ['pending', 'in_progress', 'completed'],
+      default: 'pending',
     },
     dateCompleted: {
       type: Date,
     },
-    notesUrl: {
+    notes: {
       type: String,
     },
     needsRevision: {

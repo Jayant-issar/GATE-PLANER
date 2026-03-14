@@ -59,7 +59,6 @@ export function SyllabusProvider({ children }: { children: React.ReactNode }) {
     const saved = localStorage.getItem('gate-syllabus');
     if (saved) {
       try {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setSubjects(JSON.parse(saved));
       } catch (e) {
         console.error('Failed to parse syllabus from local storage', e);

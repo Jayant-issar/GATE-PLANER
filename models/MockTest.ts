@@ -5,8 +5,8 @@ export interface IMockTest extends Document {
   name: string;
   date: Date;
   type: 'full' | 'partial';
-  subjects: string[];
-  topics: string[];
+  subjectIds: mongoose.Types.ObjectId[];
+  topicIds: mongoose.Types.ObjectId[];
   totalMarks: number;
   marksObtained: number;
   totalQuestions: number;
@@ -40,12 +40,22 @@ const MockTestSchema: Schema = new Schema(
       enum: ['full', 'partial'],
       required: true,
     },
-    subjects: {
-      type: [String],
+    subjectIds: {
+      type: [
+        {
+          type: Schema.Types.ObjectId,
+          ref: 'Subject',
+        },
+      ],
       default: [],
     },
-    topics: {
-      type: [String],
+    topicIds: {
+      type: [
+        {
+          type: Schema.Types.ObjectId,
+          ref: 'Topic',
+        },
+      ],
       default: [],
     },
     totalMarks: {

@@ -79,10 +79,8 @@ export default function MistakesPage() {
     setMounted(true);
     const saved = localStorage.getItem('mistakes_data');
     if (saved) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setMistakes(JSON.parse(saved));
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setFormData(prev => ({ ...prev, date: format(new Date(), 'yyyy-MM-dd') }));
   }, []);
 

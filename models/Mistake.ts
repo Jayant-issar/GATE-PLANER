@@ -4,8 +4,8 @@ export interface IMistake extends Document {
   userId: mongoose.Types.ObjectId;
   date: Date;
   source: string;
-  subjectId: string;
-  topicId?: string;
+  subjectId: mongoose.Types.ObjectId;
+  topicId?: mongoose.Types.ObjectId;
   questionDescription?: string;
   mistakeType: 'calculation' | 'conceptual' | 'silly' | 'formula' | 'misread' | 'time';
   whatWentWrong: string;
@@ -33,11 +33,13 @@ const MistakeSchema: Schema = new Schema(
       required: true,
     },
     subjectId: {
-      type: String,
+      type: Schema.Types.ObjectId,
+      ref: 'Subject',
       required: true,
     },
     topicId: {
-      type: String,
+      type: Schema.Types.ObjectId,
+      ref: 'Topic',
     },
     questionDescription: {
       type: String,

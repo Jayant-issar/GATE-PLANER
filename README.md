@@ -1,211 +1,211 @@
-# GATE CS Planner - Architecture & Implementation Plan
+# GATE CS Planner
 
-## 1. System Architecture
-- **Frontend**: Next.js 15+ (App Router), React 19, Tailwind CSS, Recharts (for analytics).
-- **Backend**: Next.js API Routes (Serverless functions) acting as the backend.
-- **Database**: MongoDB (NoSQL) hosted on MongoDB Atlas.
-- **ODM**: Mongoose for schema definition and data validation.
-- **Authentication**: NextAuth.js (or simple JWT-based email login) for secure access.
-- **Deployment**: Vercel or Google Cloud Run (Dockerized).
+GATE CS Planner is a Next.js application for managing long-term GATE Computer Science preparation. The product combines planning, study tracking, and performance analysis in one authenticated workspace.
 
-## 2. Database Schema (MongoDB / Mongoose)
+## Current State
 
-```javascript
-// User Schema
-const userSchema = new Schema({
-  email: { type: String, required: true, unique: true },
-  passwordHash: { type: String, required: true },
-  name: { type: String },
-  targetYear: { type: Number, default: 2027 },
-  dailyStudyHoursGoal: { type: Number, default: 4 },
-  createdAt: { type: Date, default: Date.now }
-});
+The repository already contains:
+- a working Next.js App Router frontend
+- login and registration backed by NextAuth credentials and MongoDB
+- feature pages for dashboard, weekly planner, lectures, PYQs, mock tests, mistakes, and syllabus
 
-// Subject Schema
-const subjectSchema = new Schema({
-  name: { type: String, required: true }, // e.g., "DBMS", "Operating Systems"
-  weightage: { type: Number }, // Expected marks in GATE
-});
+The repository does not yet contain:
+- server-backed CRUD APIs for the study-tracking modules
+- persisted syllabus, planner, lecture, PYQ, mock-test, and mistake data
+- revision, analytics, and settings pages
+- dashboard aggregation from backend data
 
-// Topic Schema
-const topicSchema = new Schema({
-  subjectId: { type: Schema.Types.ObjectId, ref: 'Subject' },
-  name: { type: String, required: true },
-  status: { type: String, enum: ['not started', 'learning', 'revised', 'mastered'], default: 'not started' },
-  userId: { type: Schema.Types.ObjectId, ref: 'User' }
-});
+Right now the app is best described as a frontend MVP with real auth and partial backend scaffolding.
 
-// Lecture Schema
-const lectureSchema = new Schema({
-  userId: { type: Schema.Types.ObjectId, ref: 'User' },
-  subjectId: { type: Schema.Types.ObjectId, ref: 'Subject' },
-  topicId: { type: Schema.Types.ObjectId, ref: 'Topic' },
-  lectureNumber: { type: Number },
-  title: { type: String },
-  durationMinutes: { type: Number },
-  status: { type: String, enum: ['pending', 'in-progress', 'completed'], default: 'pending' },
-  notes: { type: String },
-  revisionNeeded: { type: Boolean, default: false }
-});
+## Canonical Architecture
 
-// WeeklyPlan Schema
-const weeklyPlanSchema = new Schema({
-  userId: { type: Schema.Types.ObjectId, ref: 'User' },
-  startDate: { type: Date, required: true },
-  endDate: { type: Date, required: true },
-  goals: [{
-    subjectId: { type: Schema.Types.ObjectId, ref: 'Subject' },
-    targetLectures: { type: Number },
-    targetPYQs: { type: Number },
-    topicsToRevise: [{ type: Schema.Types.ObjectId, ref: 'Topic' }]
-  }],
-  status: { type: String, enum: ['active', 'completed'], default: 'active' }
-});
+- Frontend: Next.js 15 App Router, React 19, Tailwind CSS, Recharts
+- Backend: Next.js route handlers
+- Database: MongoDB with Mongoose
+- Auth: NextAuth credentials provider
+- Deployment target: Vercel
 
-// DailyTask Schema
-const dailyTaskSchema = new Schema({
-  userId: { type: Schema.Types.ObjectId, ref: 'User' },
-  date: { type: Date, required: true },
-  title: { type: String, required: true },
-  type: { type: String, enum: ['lecture', 'pyq', 'revision', 'mock_test'] },
-  referenceId: { type: Schema.Types.ObjectId }, // Refers to Lecture, Topic, etc.
-  estimatedMinutes: { type: Number },
-  status: { type: String, enum: ['pending', 'completed'], default: 'pending' },
-  order: { type: Number }
-});
+## Canonical Domain Model
 
-// PYQProgress Schema
-const pyqProgressSchema = new Schema({
-  userId: { type: Schema.Types.ObjectId, ref: 'User' },
-  subjectId: { type: Schema.Types.ObjectId, ref: 'Subject' },
-  topicId: { type: Schema.Types.ObjectId, ref: 'Topic' },
-  totalQuestionsAttempted: { type: Number, default: 0 },
-  correctAnswers: { type: Number, default: 0 },
-  timeSpentMinutes: { type: Number, default: 0 },
-  mistakes: [{
-    questionId: { type: String },
-    type: { type: String, enum: ['concept error', 'calculation mistake', 'misread question'] },
-    notes: { type: String }
-  }],
-  date: { type: Date, default: Date.now }
-});
+The backend should use the following entities as the source of truth.
 
-// MockTest Schema
-const mockTestSchema = new Schema({
-  userId: { type: Schema.Types.ObjectId, ref: 'User' },
-  title: { type: String },
-  date: { type: Date, default: Date.now },
-  score: { type: Number },
-  totalMarks: { type: Number, default: 100 },
-  questionsAttempted: { type: Number },
-  correct: { type: Number },
-  wrong: { type: Number },
-  timeSpentMinutes: { type: Number },
-  subjectAnalysis: [{
-    subjectId: { type: Schema.Types.ObjectId, ref: 'Subject' },
-    score: { type: Number },
-    timeSpent: { type: Number }
-  }]
-});
+### User
+- `name`
+- `email`
+- `password`
+- `targetYear`
+- `dailyStudyHoursGoal`
 
-// RevisionSchedule Schema
-const revisionScheduleSchema = new Schema({
-  userId: { type: Schema.Types.ObjectId, ref: 'User' },
-  topicId: { type: Schema.Types.ObjectId, ref: 'Topic' },
-  nextRevisionDate: { type: Date, required: true },
-  intervalLevel: { type: Number, default: 0 }, // 0: 1 day, 1: 3 days, 2: 7 days, 3: 21 days, 4: 60 days
-  status: { type: String, enum: ['pending', 'completed', 'overdue'], default: 'pending' }
-});
+### UserSettings
+- `userId`
+- `targetYear`
+- `dailyStudyHoursGoal`
+- `timezone`
+- `weekStartsOn`
 
-// MistakeLog Schema
-const mistakeLogSchema = new Schema({
-  userId: { type: Schema.Types.ObjectId, ref: 'User' },
-  subjectId: { type: Schema.Types.ObjectId, ref: 'Subject' },
-  topicId: { type: Schema.Types.ObjectId, ref: 'Topic' },
-  description: { type: String, required: true },
-  solution: { type: String },
-  date: { type: Date, default: Date.now },
-  source: { type: String, enum: ['pyq', 'mock_test', 'coaching_material'] }
-});
+### Subject
+- `userId`
+- `name`
+- `color`
+- `displayOrder`
+- `isArchived`
 
-// StudySession Schema
-const studySessionSchema = new Schema({
-  userId: { type: Schema.Types.ObjectId, ref: 'User' },
-  startTime: { type: Date, required: true },
-  endTime: { type: Date },
-  durationMinutes: { type: Number },
-  taskId: { type: Schema.Types.ObjectId, ref: 'DailyTask' }
-});
-```
+### Topic
+- `userId`
+- `subjectId`
+- `name`
+- `status`
+- `displayOrder`
+- `isArchived`
 
-## 3. API Routes (Next.js App Router)
+### Lecture
+- `userId`
+- `subjectId`
+- `topicId`
+- `title`
+- `durationMinutes`
+- `status`
+- `dateCompleted`
+- `notes`
+- `needsRevision`
 
-- `POST /api/auth/login` - Authenticate user
-- `POST /api/auth/register` - Register new user
-- `GET /api/dashboard` - Aggregate data for the main dashboard (today's tasks, weekly progress, heatmap data)
-- `GET /api/weekly-plans` - Get current and past weekly plans
-- `POST /api/weekly-plans` - Create a new weekly plan
-- `GET /api/daily-tasks?date=YYYY-MM-DD` - Get tasks for a specific day
-- `PUT /api/daily-tasks/:id` - Update task status/order
-- `GET /api/lectures` - Get lecture tracking data
-- `POST /api/lectures` - Log a new lecture
-- `GET /api/pyqs` - Get PYQ progress
-- `POST /api/pyqs` - Log a PYQ session
-- `GET /api/mock-tests` - Get mock test history
-- `POST /api/mock-tests` - Submit mock test results
-- `GET /api/revisions` - Get due revisions for today
-- `POST /api/revisions/:id/complete` - Mark revision complete and schedule next
-- `GET /api/analytics/weak-topics` - Get calculated weak topics
-- `GET /api/mistakes` - Get mistake notebook entries
-- `POST /api/mistakes` - Add a mistake log
+### WeeklyTask
 
-## 4. UI Page Structure
+This is the scheduled task entity used by the weekly planner and dashboard.
 
-- `/` (Dashboard) - Main overview
-- `/weekly-planner` - Set and view weekly goals
-- `/lectures` - Lecture tracker list and details
-- `/pyqs` - PYQ solving tracker and statistics
-- `/mock-tests` - Mock test entry and analysis
-- `/revision` - Daily revision queue (Spaced Repetition)
-- `/analytics` - Detailed charts and study heatmap
-- `/mistakes` - Mistake notebook
-- `/settings` - User preferences, study hours goal
+- `userId`
+- `title`
+- `type`
+- `status`
+- `scheduledFor`
+- `estimatedMinutes`
+- `displayOrder`
+- `subjectId`
+- `topicId`
+- `lectureId`
+- `mockTestId`
 
-## 5. Example Dashboard Layout
+### PYQProgress
+- `userId`
+- `subjectId`
+- `topicId`
+- `totalQuestions`
+- `solvedQuestions`
+- `correctQuestions`
+- `incorrectQuestions`
+- `bookmarkedQuestions`
+- `totalTimeMinutes`
 
-- **Sidebar (Left)**: Navigation links (Dashboard, Weekly Planner, Lectures, PYQs, Mock Tests, Revision, Analytics, Mistake Notebook, Settings).
-- **Main Content (Right)**:
-  - **Top Row**: Quick Stats (Hours Studied Today, Weekly Goal Completion %, Next Mock Test).
-  - **Middle Row (Split)**:
-    - **Left**: Today's Study Plan (Draggable list of tasks with checkboxes).
-    - **Right**: Weekly Progress (Progress bars for Lectures, PYQs, Revision).
-  - **Bottom Row**:
-    - **Left**: Study Heatmap (GitHub-style contribution graph for study hours).
-    - **Middle**: Weak Topics Alert (List of top 3 weak topics needing attention).
-    - **Right**: Recent Test Scores (Small line chart showing last 5 mock test scores).
+### MockTest
+- `userId`
+- `name`
+- `date`
+- `type`
+- `subjectIds`
+- `topicIds`
+- `totalMarks`
+- `marksObtained`
+- `totalQuestions`
+- `correctQuestions`
+- `wrongQuestions`
+- `unattemptedQuestions`
+- `accuracy`
+- `durationMinutes`
 
-## 6. Suggested Algorithms for Weak Topic Detection
+### Mistake
+- `userId`
+- `date`
+- `source`
+- `subjectId`
+- `topicId`
+- `questionDescription`
+- `mistakeType`
+- `whatWentWrong`
+- `learning`
+- `isRepeated`
+- `status`
 
-**Weighted Scoring Algorithm:**
-Calculate a "Weakness Score" for each topic based on three factors:
-1. **Accuracy (Weight: 50%)**: `(1 - (Correct PYQs / Total Attempted PYQs)) * 100`
-2. **Mistake Frequency (Weight: 30%)**: Number of entries in `MistakeLog` for this topic in the last 30 days.
-3. **Time Efficiency (Weight: 20%)**: Average time spent per question compared to the global average or expected time (e.g., if > 3 mins/question, increase weakness score).
+### RevisionSchedule
+- `userId`
+- `topicId`
+- `nextRevisionDate`
+- `intervalLevel`
+- `status`
 
-*Formula*: `Weakness Score = (0.5 * Inaccuracy %) + (0.3 * Normalized Mistake Count) + (0.2 * Time Penalty)`
-Topics with the highest Weakness Score are flagged in the "Weak Topics" section.
+## Delivery Roadmap
 
-## 7. Daily Plan Generation Logic
+### Phase 1: Backend foundation
+- finalize canonical models
+- add shared API/auth/validation utilities
+- document consistent field names and route expectations
 
-**Inputs**: Available study hours (e.g., 4 hours), Weekly Goals, Due Revisions, Weak Topics.
-**Process**:
-1. **Allocate Revision (20% of time)**: Fetch overdue and today's pending revisions from `RevisionSchedule`. Allocate ~45 mins.
-2. **Allocate Weekly Goals (60% of time)**:
-   - Check pending lectures for the week. Allocate 1-2 lectures (~1.5 hours).
-   - Check pending PYQ targets. Allocate a block of PYQs (~1 hour).
-3. **Allocate Weak Topics (20% of time)**: Fetch top 1 weak topic. Assign a 30-45 min task to "Review [Weak Topic] concepts or solve specific PYQs".
-4. **Task Ordering**:
-   - 1st: Revision (Active recall early in the session).
-   - 2nd: Heavy cognitive task (Lecture or Weak Topic).
-   - 3rd: Practice (PYQs).
-5. **Output**: Generate `DailyTask` records for the current date.
+### Phase 2: Core persistence
+- persist syllabus
+- persist lectures
+- persist weekly tasks
+- connect dashboard to stored planner and lecture data
+
+### Phase 3: Tracker persistence
+- persist PYQ progress
+- persist mock tests
+- persist mistakes
+- add dashboard aggregation endpoint
+
+### Phase 4: Intelligent workflows
+- revision queue
+- analytics page
+- settings page
+- weak-topic scoring
+- automatic daily plan generation
+
+## Planned API Surface
+
+### Auth
+- `POST /api/auth/register`
+- `POST /api/auth/[...nextauth]`
+
+### Syllabus
+- `GET /api/subjects`
+- `POST /api/subjects`
+- `PATCH /api/subjects/:id`
+- `DELETE /api/subjects/:id`
+- `GET /api/topics`
+- `POST /api/topics`
+- `PATCH /api/topics/:id`
+- `DELETE /api/topics/:id`
+
+### Tracking
+- `GET /api/lectures`
+- `POST /api/lectures`
+- `PATCH /api/lectures/:id`
+- `DELETE /api/lectures/:id`
+- `GET /api/weekly-tasks`
+- `POST /api/weekly-tasks`
+- `PATCH /api/weekly-tasks/:id`
+- `DELETE /api/weekly-tasks/:id`
+- `GET /api/pyqs`
+- `POST /api/pyqs`
+- `PATCH /api/pyqs/:id`
+- `DELETE /api/pyqs/:id`
+- `GET /api/mock-tests`
+- `POST /api/mock-tests`
+- `PATCH /api/mock-tests/:id`
+- `DELETE /api/mock-tests/:id`
+- `GET /api/mistakes`
+- `POST /api/mistakes`
+- `PATCH /api/mistakes/:id`
+- `DELETE /api/mistakes/:id`
+
+### Aggregation and workflows
+- `GET /api/dashboard`
+- `GET /api/revisions`
+- `POST /api/revisions/:id/complete`
+- `GET /api/analytics/weak-topics`
+
+## Immediate Next Build Order
+
+1. Add persistent subject/topic models and APIs.
+2. Rework syllabus state to fetch from the backend instead of `localStorage`.
+3. Add lectures CRUD APIs and wire the lectures page to them.
+4. Add weekly task CRUD APIs and unify planner/dashboard data flow.
+5. Move PYQs, mock tests, and mistakes to the backend.

@@ -40,7 +40,6 @@ export default function PYQsPage() {
     const savedTopics = localStorage.getItem('pyq_tracked_topics');
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (savedSubjects) setTrackedSubjectIds(JSON.parse(savedSubjects));
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (savedTopics) setTrackedTopics(JSON.parse(savedTopics));
   }, []);
 

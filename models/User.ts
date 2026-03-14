@@ -4,6 +4,8 @@ export interface IUser extends Document {
   name: string;
   email: string;
   password?: string;
+  targetYear: number;
+  dailyStudyHoursGoal: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -26,6 +28,16 @@ const UserSchema: Schema = new Schema(
     password: {
       type: String,
       select: false, // Don't return password by default
+    },
+    targetYear: {
+      type: Number,
+      default: 2027,
+      min: 2024,
+    },
+    dailyStudyHoursGoal: {
+      type: Number,
+      default: 4,
+      min: 1,
     },
   },
   {
