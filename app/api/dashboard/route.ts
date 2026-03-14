@@ -10,6 +10,7 @@ import WeeklyTask from '@/models/WeeklyTask';
 import RevisionSchedule from '@/models/RevisionSchedule';
 import Subject from '@/models/Subject';
 import Topic from '@/models/Topic';
+import StudySession from '@/models/StudySession';
 
 export async function GET() {
   return withApiHandler(async () => {
@@ -22,7 +23,7 @@ export async function GET() {
     endOfToday.setHours(23, 59, 59, 999);
     const heatmapStart = subDays(startOfToday, 83);
 
-    const [todayTasks, lectures, pyqTopics, mistakes, mockTests, heatmapTasks, revisions, subjects, topics] = await Promise.all([
+    const [todayTasks, lectures, pyqTopics, mistakes, mockTests, revisions, subjects, topics, studySessions] = await Promise.all([
       WeeklyTask.find({
         userId: user.id,
         scheduledFor: { $gte: startOfToday, $lte: endOfToday },
@@ -33,27 +34,36 @@ export async function GET() {
       PYQProgress.find({ userId: user.id }).lean(),
       Mistake.find({ userId: user.id }).sort({ date: -1, createdAt: -1 }).lean(),
       MockTest.find({ userId: user.id }).sort({ date: -1, createdAt: -1 }).lean(),
-      WeeklyTask.find({
-        userId: user.id,
-        scheduledFor: { $gte: heatmapStart, $lte: endOfToday },
-      }).lean(),
       RevisionSchedule.find({ userId: user.id }).lean(),
       Subject.find({ userId: user.id }).lean(),
       Topic.find({ userId: user.id }).lean(),
+      StudySession.find({
+        userId: user.id,
+        startedAt: { $gte: heatmapStart, $lte: endOfToday },
+      }).lean(),
     ]);
 
     const heatmap = Array.from({ length: 84 }).map((_, index) => {
       const date = subDays(endOfToday, 83 - index);
       const key = date.toISOString().slice(0, 10);
-      const hours = heatmapTasks
-        .filter((task) => task.scheduledFor.toISOString().slice(0, 10) === key)
-        .reduce((sum, task) => sum + (task.estimatedMinutes ?? 0) / 60, 0);
+      const hours = studySessions
+        .filter((session) => session.startedAt.toISOString().slice(0, 10) === key)
+        .reduce((sum, session) => sum + session.durationMinutes / 60, 0);
 
       return {
         date: key,
         hours: Number(hours.toFixed(1)),
       };
     });
+
+    const todayStudyHours = Number(
+      studySessions
+        .filter((session) => session.startedAt >= startOfToday && session.startedAt <= endOfToday)
+        .reduce((sum, session) => sum + session.durationMinutes / 60, 0)
+        .toFixed(1)
+    );
+
+    const activeStudySession = studySessions.find((session) => !session.endedAt) ?? null;
 
     const weakTopics = pyqTopics
       .map((topic) => {
@@ -116,6 +126,24 @@ export async function GET() {
         nextRevisionDate: revision.nextRevisionDate.toISOString(),
         status: revision.status,
       })),
+      studySessions: studySessions
+        .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime())
+        .slice(0, 10)
+        .map((session) => ({
+          id: session._id.toString(),
+          title: session.title,
+          startedAt: session.startedAt.toISOString(),
+          endedAt: session.endedAt ? session.endedAt.toISOString() : null,
+          durationMinutes: session.durationMinutes,
+        })),
+      todayStudyHours,
+      activeStudySession: activeStudySession
+        ? {
+            id: activeStudySession._id.toString(),
+            title: activeStudySession.title,
+            startedAt: activeStudySession.startedAt.toISOString(),
+          }
+        : null,
       weakTopics,
       heatmap,
     };

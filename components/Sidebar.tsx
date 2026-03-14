@@ -13,6 +13,7 @@ import {
   BarChart3,
   BookOpen,
   Settings,
+  Timer,
   Layers,
   LogOut,
 } from 'lucide-react';
@@ -25,6 +26,7 @@ const navItems = [
   { name: 'Mock Tests', href: '/mock-tests', icon: FileText },
   { name: 'Revision', href: '/revision', icon: Repeat },
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+  { name: 'Study Sessions', href: '/study-sessions', icon: Timer },
   { name: 'Mistake Notebook', href: '/mistakes', icon: BookOpen },
   { name: 'Syllabus', href: '/syllabus', icon: Layers },
   { name: 'Settings', href: '/settings', icon: Settings },

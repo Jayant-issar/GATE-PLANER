@@ -7,8 +7,10 @@ import {
   CheckCircle2,
   Circle,
   FileQuestion,
+  PlayCircle,
   Repeat,
   Target,
+  Timer,
   Video,
 } from 'lucide-react';
 import {
@@ -70,6 +72,14 @@ interface DashboardWeakTopic {
   weaknessScore: number;
 }
 
+interface DashboardStudySession {
+  id: string;
+  title: string;
+  startedAt: string;
+  endedAt: string | null;
+  durationMinutes: number;
+}
+
 interface HeatmapEntry {
   date: string;
   hours: number;
@@ -85,6 +95,13 @@ export function Dashboard() {
   const [mockTests, setMockTests] = useState<DashboardMockTest[]>([]);
   const [revisions, setRevisions] = useState<DashboardRevision[]>([]);
   const [weakTopics, setWeakTopics] = useState<DashboardWeakTopic[]>([]);
+  const [studySessions, setStudySessions] = useState<DashboardStudySession[]>([]);
+  const [todayStudyHours, setTodayStudyHours] = useState(0);
+  const [activeStudySession, setActiveStudySession] = useState<{
+    id: string;
+    title: string;
+    startedAt: string;
+  } | null>(null);
   const [heatmap, setHeatmap] = useState<HeatmapEntry[]>([]);
 
   useEffect(() => {
@@ -95,6 +112,9 @@ export function Dashboard() {
       mistakes: DashboardMistake[];
       mockTests: DashboardMockTest[];
       revisions: DashboardRevision[];
+      studySessions: DashboardStudySession[];
+      todayStudyHours: number;
+      activeStudySession: { id: string; title: string; startedAt: string } | null;
       weakTopics: DashboardWeakTopic[];
       heatmap: HeatmapEntry[];
     }>('/api/dashboard')
@@ -105,6 +125,9 @@ export function Dashboard() {
         setMistakes(data.mistakes);
         setMockTests(data.mockTests);
         setRevisions(data.revisions);
+        setStudySessions(data.studySessions);
+        setTodayStudyHours(data.todayStudyHours);
+        setActiveStudySession(data.activeStudySession);
         setWeakTopics(data.weakTopics);
         setHeatmap(data.heatmap);
       })
@@ -169,9 +192,15 @@ export function Dashboard() {
           <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
           <p className="text-sm text-slate-500">Here&apos;s your backend-synced study overview.</p>
         </div>
-        <div className="flex items-center space-x-2 rounded-lg bg-white px-4 py-2 shadow-sm border border-slate-200">
-          <Target className="h-5 w-5 text-emerald-500" />
-          <span className="text-sm font-medium text-slate-600">{todayProgress}% Daily Goal</span>
+        <div className="flex flex-wrap gap-3">
+          <div className="flex items-center space-x-2 rounded-lg bg-white px-4 py-2 shadow-sm border border-slate-200">
+            <Target className="h-5 w-5 text-emerald-500" />
+            <span className="text-sm font-medium text-slate-600">{todayProgress}% Daily Goal</span>
+          </div>
+          <div className="flex items-center space-x-2 rounded-lg bg-white px-4 py-2 shadow-sm border border-slate-200">
+            <Timer className="h-5 w-5 text-indigo-500" />
+            <span className="text-sm font-medium text-slate-600">{todayStudyHours}h Studied Today</span>
+          </div>
         </div>
       </div>
 
@@ -289,6 +318,44 @@ export function Dashboard() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="col-span-1 lg:col-span-3">
           <StudyHeatmap data={heatmap} />
+        </div>
+
+        <div className="rounded-xl border bg-white p-6 shadow-sm">
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <PlayCircle className="h-5 w-5 text-indigo-500" />
+              <h2 className="text-lg font-semibold text-slate-900">Study Sessions</h2>
+            </div>
+          </div>
+          {activeStudySession ? (
+            <div className="mb-4 rounded-lg border border-indigo-100 bg-indigo-50 p-3">
+              <p className="text-sm font-medium text-indigo-900">{activeStudySession.title}</p>
+              <p className="text-xs text-indigo-700">
+                Active since {new Date(activeStudySession.startedAt).toLocaleTimeString()}
+              </p>
+            </div>
+          ) : null}
+          {studySessions.length === 0 ? (
+            <div className="text-sm text-slate-500">No study sessions recorded yet.</div>
+          ) : (
+            <div className="space-y-3">
+              {studySessions.slice(0, 4).map((session) => (
+                <div key={session.id} className="rounded-lg border border-slate-100 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">{session.title}</p>
+                      <p className="text-xs text-slate-500">
+                        {new Date(session.startedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <span className="text-sm font-semibold text-slate-700">
+                      {session.durationMinutes}m
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="rounded-xl border bg-white p-6 shadow-sm">
