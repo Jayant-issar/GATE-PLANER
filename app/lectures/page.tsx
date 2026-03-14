@@ -18,6 +18,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { useSyllabus } from '@/context/SyllabusContext';
+import { apiRequest } from '@/lib/client-api';
 
 interface Lecture {
   id: string;
@@ -32,6 +33,7 @@ export default function LecturesPage() {
   const { subjects } = useSyllabus();
   
   const [lectures, setLectures] = useState<Lecture[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedSubject, setSelectedSubject] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -48,19 +50,18 @@ export default function LecturesPage() {
   const [formStatus, setFormStatus] = useState<'completed' | 'in-progress' | 'pending'>('pending');
   const [formNeedsRevision, setFormNeedsRevision] = useState(false);
 
-  // Load from local storage
   useEffect(() => {
-    const savedLectures = localStorage.getItem('lectures_data');
-    if (savedLectures) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setLectures(JSON.parse(savedLectures));
-    }
+    apiRequest<{ lectures: Lecture[] }>('/api/lectures')
+      .then((data) => {
+        setLectures(data.lectures);
+      })
+      .catch((error) => {
+        console.error('Failed to load lectures', error);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, []);
-
-  // Save to local storage
-  useEffect(() => {
-    localStorage.setItem('lectures_data', JSON.stringify(lectures));
-  }, [lectures]);
 
   // Calculate progress for subject cards
   const subjectProgress = useMemo(() => {
@@ -119,41 +120,58 @@ export default function LecturesPage() {
     setIsModalOpen(true);
   };
 
-  const handleSaveLecture = () => {
+  const handleSaveLecture = async () => {
     if (!formTitle.trim() || !formSubjectId || formDuration === '') return;
 
     if (editingLecture) {
-      setLectures(lectures.map(l => l.id === editingLecture.id ? {
-        ...l,
-        title: formTitle.trim(),
-        subjectId: formSubjectId,
-        duration: Number(formDuration),
-        status: formStatus,
-        needsRevision: formNeedsRevision
-      } : l));
+      const data = await apiRequest<{ lecture: Lecture }>(`/api/lectures/${editingLecture.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          title: formTitle.trim(),
+          subjectId: formSubjectId,
+          duration: Number(formDuration),
+          status: formStatus,
+          needsRevision: formNeedsRevision,
+        }),
+      });
+      setLectures(lectures.map((lecture) => (lecture.id === editingLecture.id ? data.lecture : lecture)));
     } else {
-      const newLecture: Lecture = {
-        id: crypto.randomUUID(),
-        title: formTitle.trim(),
-        subjectId: formSubjectId,
-        duration: Number(formDuration),
-        status: formStatus,
-        needsRevision: formNeedsRevision
-      };
-      setLectures([...lectures, newLecture]);
+      const data = await apiRequest<{ lecture: Lecture }>('/api/lectures', {
+        method: 'POST',
+        body: JSON.stringify({
+          title: formTitle.trim(),
+          subjectId: formSubjectId,
+          duration: Number(formDuration),
+          status: formStatus,
+          needsRevision: formNeedsRevision,
+        }),
+      });
+      setLectures([data.lecture, ...lectures]);
     }
     setIsModalOpen(false);
   };
 
-  const handleDeleteLecture = (id: string) => {
+  const handleDeleteLecture = async (id: string) => {
     if (confirm('Are you sure you want to delete this lecture?')) {
+      await apiRequest<{ deleted: boolean }>(`/api/lectures/${id}`, { method: 'DELETE' });
       setLectures(lectures.filter(l => l.id !== id));
     }
   };
 
-  const toggleRevision = (id: string) => {
-    setLectures(lectures.map(l => l.id === id ? { ...l, needsRevision: !l.needsRevision } : l));
+  const toggleRevision = async (id: string) => {
+    const lecture = lectures.find((item) => item.id === id);
+    if (!lecture) return;
+
+    const data = await apiRequest<{ lecture: Lecture }>(`/api/lectures/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ needsRevision: !lecture.needsRevision }),
+    });
+    setLectures(lectures.map((item) => (item.id === id ? data.lecture : item)));
   };
+
+  if (loading) {
+    return <div className="rounded-xl border bg-white p-6 shadow-sm text-slate-500">Loading lectures...</div>;
+  }
 
   return (
     <div className="space-y-6 h-full flex flex-col relative">

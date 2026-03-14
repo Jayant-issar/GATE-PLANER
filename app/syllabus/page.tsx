@@ -5,7 +5,7 @@ import { useSyllabus } from '@/context/SyllabusContext';
 import { Plus, Trash2, ChevronDown, ChevronRight, BookOpen, Layers } from 'lucide-react';
 
 export default function SyllabusPage() {
-  const { subjects, addSubject, removeSubject, addTopic, removeTopic } = useSyllabus();
+  const { subjects, loading, addSubject, removeSubject, addTopic, removeTopic } = useSyllabus();
   const [expandedSubject, setExpandedSubject] = useState<string | null>(null);
   
   const [newSubjectName, setNewSubjectName] = useState('');
@@ -75,7 +75,11 @@ export default function SyllabusPage() {
 
         {/* Subjects List */}
         <div className="lg:col-span-2 space-y-4">
-          {subjects.length === 0 ? (
+          {loading ? (
+            <div className="rounded-xl border bg-white p-8 text-center shadow-sm text-slate-500">
+              Loading syllabus...
+            </div>
+          ) : subjects.length === 0 ? (
             <div className="rounded-xl border bg-white p-8 text-center shadow-sm">
               <BookOpen className="mx-auto h-12 w-12 text-slate-300 mb-3" />
               <h3 className="text-lg font-medium text-slate-900">No subjects added</h3>

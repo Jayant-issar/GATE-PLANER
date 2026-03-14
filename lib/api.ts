@@ -17,6 +17,7 @@ export class ApiError extends Error {
   constructor(code: ApiErrorCode, message: string) {
     super(message);
     this.name = 'ApiError';
+    Object.setPrototypeOf(this, ApiError.prototype);
     this.code = code;
     this.status = errorStatusMap[code];
   }
@@ -31,6 +32,18 @@ export function apiMessage(message: string, init?: ResponseInit) {
 }
 
 export function apiErrorResponse(error: unknown) {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: unknown }).code === 11000
+  ) {
+    return NextResponse.json(
+      { error: 'Resource already exists', code: 'CONFLICT' },
+      { status: 409 }
+    );
+  }
+
   if (error instanceof ApiError) {
     return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
   }

@@ -24,6 +24,8 @@ Right now the app is best described as a frontend MVP with real auth and partial
 - Database: MongoDB with Mongoose
 - Auth: NextAuth credentials provider
 - Deployment target: Vercel
+- Local database: Dockerized MongoDB via `docker compose up -d mongo`
+- Backend tests: Jest route-handler tests against the Mongo container
 
 ## Canonical Domain Model
 
@@ -209,3 +211,10 @@ This is the scheduled task entity used by the weekly planner and dashboard.
 3. Add lectures CRUD APIs and wire the lectures page to them.
 4. Add weekly task CRUD APIs and unify planner/dashboard data flow.
 5. Move PYQs, mock tests, and mistakes to the backend.
+
+## Local Setup
+
+1. Copy `.env.example` to `.env.local`.
+2. Start MongoDB with `docker compose up -d mongo`.
+3. Run the app with `npm run dev`.
+4. Run backend API tests with `npm test`.

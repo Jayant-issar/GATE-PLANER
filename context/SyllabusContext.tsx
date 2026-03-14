@@ -1,105 +1,99 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { apiRequest } from '@/lib/client-api';
 
 export interface Topic {
   id: string;
   name: string;
+  status?: string;
 }
 
 export interface Subject {
   id: string;
   name: string;
+  color?: string | null;
   topics: Topic[];
 }
 
 interface SyllabusContextType {
   subjects: Subject[];
-  addSubject: (name: string) => void;
-  removeSubject: (id: string) => void;
-  addTopic: (subjectId: string, topicName: string) => void;
-  removeTopic: (subjectId: string, topicId: string) => void;
+  loading: boolean;
+  refreshSubjects: () => Promise<void>;
+  addSubject: (name: string) => Promise<void>;
+  removeSubject: (id: string) => Promise<void>;
+  addTopic: (subjectId: string, topicName: string) => Promise<void>;
+  removeTopic: (subjectId: string, topicId: string) => Promise<void>;
 }
-
-const defaultSubjects: Subject[] = [
-  {
-    id: 'sub_1',
-    name: 'Computer Networks',
-    topics: [
-      { id: 'top_1_1', name: 'OSI and IP model' },
-      { id: 'top_1_2', name: 'Error handling' }
-    ]
-  },
-  {
-    id: 'sub_2',
-    name: 'Databases',
-    topics: [
-      { id: 'top_2_1', name: 'Normalization' },
-      { id: 'top_2_2', name: 'ER model diagram' }
-    ]
-  },
-  {
-    id: 'sub_3',
-    name: 'Operating Systems',
-    topics: [
-      { id: 'top_3_1', name: 'Deadlocks' }
-    ]
-  }
-];
 
 const SyllabusContext = createContext<SyllabusContextType | undefined>(undefined);
 
 export function SyllabusProvider({ children }: { children: React.ReactNode }) {
-  const [subjects, setSubjects] = useState<Subject[]>(defaultSubjects);
-  const [mounted, setMounted] = useState(false);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMounted(true);
-    const saved = localStorage.getItem('gate-syllabus');
-    if (saved) {
-      try {
-        setSubjects(JSON.parse(saved));
-      } catch (e) {
-        console.error('Failed to parse syllabus from local storage', e);
-      }
-    }
+  const refreshSubjects = useCallback(async () => {
+    const data = await apiRequest<{ subjects: Subject[] }>('/api/subjects');
+    setSubjects(data.subjects);
   }, []);
 
   useEffect(() => {
-    if (mounted) {
-      localStorage.setItem('gate-syllabus', JSON.stringify(subjects));
-    }
-  }, [subjects, mounted]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    refreshSubjects()
+      .catch((error) => {
+        console.error('Failed to load syllabus', error);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [refreshSubjects]);
 
-  const addSubject = (name: string) => {
-    setSubjects(prev => [...prev, { id: crypto.randomUUID(), name, topics: [] }]);
+  const addSubject = async (name: string) => {
+    const data = await apiRequest<{ subjects: Subject[] }>('/api/subjects', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    });
+    setSubjects(data.subjects);
   };
 
-  const removeSubject = (id: string) => {
-    setSubjects(prev => prev.filter(s => s.id !== id));
+  const removeSubject = async (id: string) => {
+    await apiRequest<{ deleted: boolean }>(`/api/subjects/${id}`, { method: 'DELETE' });
+    setSubjects((prev) => prev.filter((subject) => subject.id !== id));
   };
 
-  const addTopic = (subjectId: string, topicName: string) => {
-    setSubjects(prev => prev.map(s => {
-      if (s.id === subjectId) {
-        return { ...s, topics: [...s.topics, { id: crypto.randomUUID(), name: topicName }] };
-      }
-      return s;
-    }));
+  const addTopic = async (subjectId: string, topicName: string) => {
+    const data = await apiRequest<{ topic: Topic & { subjectId: string } }>('/api/topics', {
+      method: 'POST',
+      body: JSON.stringify({ subjectId, name: topicName }),
+    });
+
+    setSubjects((prev) =>
+      prev.map((subject) =>
+        subject.id === subjectId
+          ? {
+              ...subject,
+              topics: [...subject.topics, { id: data.topic.id, name: data.topic.name, status: data.topic.status }],
+            }
+          : subject
+      )
+    );
   };
 
-  const removeTopic = (subjectId: string, topicId: string) => {
-    setSubjects(prev => prev.map(s => {
-      if (s.id === subjectId) {
-        return { ...s, topics: s.topics.filter(t => t.id !== topicId) };
-      }
-      return s;
-    }));
+  const removeTopic = async (subjectId: string, topicId: string) => {
+    await apiRequest<{ deleted: boolean }>(`/api/topics/${topicId}`, { method: 'DELETE' });
+    setSubjects((prev) =>
+      prev.map((subject) =>
+        subject.id === subjectId
+          ? { ...subject, topics: subject.topics.filter((topic) => topic.id !== topicId) }
+          : subject
+      )
+    );
   };
 
   return (
-    <SyllabusContext.Provider value={{ subjects, addSubject, removeSubject, addTopic, removeTopic }}>
+    <SyllabusContext.Provider
+      value={{ subjects, loading, refreshSubjects, addSubject, removeSubject, addTopic, removeTopic }}
+    >
       {children}
     </SyllabusContext.Provider>
   );
@@ -107,7 +101,7 @@ export function SyllabusProvider({ children }: { children: React.ReactNode }) {
 
 export function useSyllabus() {
   const context = useContext(SyllabusContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useSyllabus must be used within a SyllabusProvider');
   }
   return context;
