@@ -6,10 +6,13 @@ const TEST_URI =
 
 export async function startTestDatabase() {
   process.env.MONGODB_URI = TEST_URI;
-  (global as { mongoose?: { conn: unknown; promise: unknown } }).mongoose = {
-    conn: null,
-    promise: null,
-  };
+  const globalWithMongoose = global as { mongoose?: { conn: unknown; promise: unknown } };
+  if (!globalWithMongoose.mongoose) {
+    globalWithMongoose.mongoose = { conn: null, promise: null };
+  } else {
+    globalWithMongoose.mongoose.conn = null;
+    globalWithMongoose.mongoose.promise = null;
+  }
 }
 
 export async function clearTestDatabase() {
@@ -19,10 +22,13 @@ export async function clearTestDatabase() {
 
   await mongoose.connection.dropDatabase();
   await mongoose.disconnect();
-  (global as { mongoose?: { conn: unknown; promise: unknown } }).mongoose = {
-    conn: null,
-    promise: null,
-  };
+  const globalWithMongoose = global as { mongoose?: { conn: unknown; promise: unknown } };
+  if (!globalWithMongoose.mongoose) {
+    globalWithMongoose.mongoose = { conn: null, promise: null };
+  } else {
+    globalWithMongoose.mongoose.conn = null;
+    globalWithMongoose.mongoose.promise = null;
+  }
 }
 
 export async function stopTestDatabase() {

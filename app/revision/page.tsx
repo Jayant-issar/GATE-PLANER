@@ -1,42 +1,73 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Flag, RefreshCw } from 'lucide-react';
-import { useSyllabus } from '@/context/SyllabusContext';
+import { format } from 'date-fns';
+import { Clock3, RefreshCw } from 'lucide-react';
 import { apiRequest } from '@/lib/client-api';
 
-interface Lecture {
+interface RevisionItem {
   id: string;
+  lectureId: string;
   subjectId: string;
-  title: string;
-  duration: number;
-  status: 'completed' | 'in-progress' | 'pending';
-  needsRevision: boolean;
+  topicId: string;
+  lectureTitle: string;
+  subjectName: string;
+  topicName: string;
+  nextRevisionDate: string;
+  intervalLevel: number;
+  status: 'pending' | 'completed' | 'overdue';
 }
 
 export default function RevisionPage() {
-  const { subjects } = useSyllabus();
-  const [lectures, setLectures] = useState<Lecture[]>([]);
+  const [revisions, setRevisions] = useState<RevisionItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    apiRequest<{ lectures: Lecture[] }>('/api/lectures')
-      .then((data) => setLectures(data.lectures))
+    apiRequest<{ revisions: RevisionItem[] }>('/api/revisions')
+      .then((data) => setRevisions(data.revisions))
       .finally(() => setLoading(false));
   }, []);
 
-  const revisionLectures = useMemo(
-    () => lectures.filter((lecture) => lecture.needsRevision),
-    [lectures]
-  );
+  const revisionLectures = useMemo(() => revisions, [revisions]);
 
-  const toggleRevision = async (lecture: Lecture) => {
-    const data = await apiRequest<{ lecture: Lecture }>(`/api/lectures/${lecture.id}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ needsRevision: !lecture.needsRevision }),
-    });
-    setLectures((prev) => prev.map((item) => (item.id === lecture.id ? data.lecture : item)));
+  const completeRevision = async (revision: RevisionItem) => {
+    const data = await apiRequest<{ revision: { id: string; nextRevisionDate: string; intervalLevel: number; status: string } }>(
+      `/api/revisions/${revision.id}/complete`,
+      {
+        method: 'POST',
+      }
+    );
+    setRevisions((prev) =>
+      prev.map((item) =>
+        item.id === revision.id
+          ? {
+              ...item,
+              nextRevisionDate: data.revision.nextRevisionDate,
+              intervalLevel: data.revision.intervalLevel,
+              status: data.revision.status as RevisionItem['status'],
+            }
+          : item
+      )
+    );
   };
+
+  const dueTodayCount = useMemo(() => {
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    return revisions.filter((revision) => new Date(revision.nextRevisionDate) <= today).length;
+  }, [revisions]);
+
+  const overdueCount = useMemo(() => revisions.filter((revision) => revision.status === 'overdue').length, [revisions]);
+
+  const sortedRevisions = useMemo(
+    () =>
+      revisionLectures.slice().sort((a, b) => {
+        const overdueDiff = Number(b.status === 'overdue') - Number(a.status === 'overdue');
+        if (overdueDiff !== 0) return overdueDiff;
+        return new Date(a.nextRevisionDate).getTime() - new Date(b.nextRevisionDate).getTime();
+      }),
+    [revisionLectures]
+  );
 
   if (loading) {
     return <div className="rounded-xl border bg-white p-6 shadow-sm text-slate-500">Loading revision queue...</div>;
@@ -46,21 +77,51 @@ export default function RevisionPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Revision Queue</h1>
-        <p className="text-sm text-slate-500">Lectures currently marked for revision</p>
+        <p className="text-sm text-slate-500">Scheduled revisions with interval progression</p>
+      </div>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="rounded-xl border bg-white p-5 shadow-sm">
+          <p className="text-sm text-slate-500">Total Scheduled</p>
+          <p className="mt-2 text-3xl font-bold text-slate-900">{revisions.length}</p>
+        </div>
+        <div className="rounded-xl border bg-white p-5 shadow-sm">
+          <p className="text-sm text-slate-500">Due Today</p>
+          <p className="mt-2 text-3xl font-bold text-amber-600">{dueTodayCount}</p>
+        </div>
+        <div className="rounded-xl border bg-white p-5 shadow-sm">
+          <p className="text-sm text-slate-500">Overdue</p>
+          <p className="mt-2 text-3xl font-bold text-rose-600">{overdueCount}</p>
+        </div>
       </div>
       <div className="rounded-xl border bg-white shadow-sm divide-y divide-slate-100">
-        {revisionLectures.length === 0 ? (
-          <div className="p-6 text-slate-500">No lectures need revision right now.</div>
+        {sortedRevisions.length === 0 ? (
+          <div className="p-6 text-slate-500">No revision items scheduled right now.</div>
         ) : (
-          revisionLectures.map((lecture) => (
-            <div key={lecture.id} className="p-4 flex items-center justify-between">
+          sortedRevisions.map((revision) => (
+            <div key={revision.id} className="p-4 flex items-center justify-between gap-4">
               <div>
-                <p className="font-semibold text-slate-900">{lecture.title}</p>
-                <p className="text-sm text-slate-500">{subjects.find((subject) => subject.id === lecture.subjectId)?.name ?? 'Unknown Subject'}</p>
+                <p className="font-semibold text-slate-900">{revision.lectureTitle}</p>
+                <p className="text-sm text-slate-500">
+                  {revision.subjectName}
+                  {revision.topicName ? ` • ${revision.topicName}` : ''}
+                </p>
+                <div className="mt-2 flex items-center gap-3 text-xs text-slate-500">
+                  <span className="inline-flex items-center gap-1">
+                    <Clock3 className="h-3.5 w-3.5" />
+                    {format(new Date(revision.nextRevisionDate), 'MMM d, yyyy')}
+                  </span>
+                  <span>Interval Level {revision.intervalLevel}</span>
+                  <span className={revision.status === 'overdue' ? 'text-rose-600 font-medium' : 'text-slate-500'}>
+                    {revision.status}
+                  </span>
+                </div>
               </div>
-              <button onClick={() => toggleRevision(lecture)} className="inline-flex items-center gap-2 rounded-md bg-amber-100 px-3 py-1.5 text-sm font-medium text-amber-700 hover:bg-amber-200">
+              <button
+                onClick={() => completeRevision(revision)}
+                className="inline-flex items-center gap-2 rounded-md bg-amber-100 px-3 py-1.5 text-sm font-medium text-amber-700 hover:bg-amber-200"
+              >
                 <RefreshCw className="h-4 w-4" />
-                Mark Reviewed
+                Complete Revision
               </button>
             </div>
           ))

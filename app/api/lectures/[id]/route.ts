@@ -9,6 +9,7 @@ import {
   requireObjectId,
 } from '@/lib/validators';
 import Lecture from '@/models/Lecture';
+import { syncLectureRevisionSchedule } from '@/lib/revision';
 
 export async function PATCH(
   req: Request,
@@ -39,6 +40,14 @@ export async function PATCH(
     );
 
     if (!lecture) throw new ApiError('NOT_FOUND', 'Lecture not found');
+
+    await syncLectureRevisionSchedule({
+      userId: user.id,
+      lectureId: lecture._id,
+      subjectId: lecture.subjectId,
+      topicId: lecture.topicId,
+      needsRevision: lecture.needsRevision,
+    });
 
     return {
       lecture: {

@@ -57,6 +57,19 @@ interface DashboardMockTest {
   marksObtained: number;
 }
 
+interface DashboardRevision {
+  id: string;
+  nextRevisionDate: string;
+  status: string;
+}
+
+interface DashboardWeakTopic {
+  topicId: string;
+  topicName: string;
+  subjectName: string;
+  weaknessScore: number;
+}
+
 interface HeatmapEntry {
   date: string;
   hours: number;
@@ -70,6 +83,8 @@ export function Dashboard() {
   const [pyqTopics, setPyqTopics] = useState<DashboardPYQ[]>([]);
   const [mistakes, setMistakes] = useState<DashboardMistake[]>([]);
   const [mockTests, setMockTests] = useState<DashboardMockTest[]>([]);
+  const [revisions, setRevisions] = useState<DashboardRevision[]>([]);
+  const [weakTopics, setWeakTopics] = useState<DashboardWeakTopic[]>([]);
   const [heatmap, setHeatmap] = useState<HeatmapEntry[]>([]);
 
   useEffect(() => {
@@ -79,6 +94,8 @@ export function Dashboard() {
       pyqTopics: DashboardPYQ[];
       mistakes: DashboardMistake[];
       mockTests: DashboardMockTest[];
+      revisions: DashboardRevision[];
+      weakTopics: DashboardWeakTopic[];
       heatmap: HeatmapEntry[];
     }>('/api/dashboard')
       .then((data) => {
@@ -87,6 +104,8 @@ export function Dashboard() {
         setPyqTopics(data.pyqTopics);
         setMistakes(data.mistakes);
         setMockTests(data.mockTests);
+        setRevisions(data.revisions);
+        setWeakTopics(data.weakTopics);
         setHeatmap(data.heatmap);
       })
       .catch((error) => {
@@ -111,8 +130,9 @@ export function Dashboard() {
 
   const revisionStats = useMemo(() => {
     const total = lectures.filter((lecture) => lecture.needsRevision).length;
-    return { total };
-  }, [lectures]);
+    const scheduled = revisions.filter((revision) => revision.status === 'pending' || revision.status === 'overdue').length;
+    return { total: Math.max(total, scheduled) };
+  }, [lectures, revisions]);
 
   const needsReviewMistakes = useMemo(
     () => mistakes.filter((mistake) => mistake.status === 'needs_review').slice(0, 4),
@@ -237,6 +257,32 @@ export function Dashboard() {
               </div>
             </div>
           </div>
+        </div>
+
+        <div className="rounded-xl border bg-white p-6 shadow-sm">
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              <h2 className="text-lg font-semibold text-slate-900">Weak Topics</h2>
+            </div>
+          </div>
+          {weakTopics.length === 0 ? (
+            <div className="text-sm text-slate-500">No weak topics computed yet.</div>
+          ) : (
+            <div className="space-y-3">
+              {weakTopics.map((topic) => (
+                <div key={topic.topicId} className="rounded-lg border border-slate-100 p-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-slate-900 text-sm">{topic.topicName}</p>
+                      <p className="text-xs text-slate-500">{topic.subjectName}</p>
+                    </div>
+                    <span className="text-sm font-semibold text-rose-600">{topic.weaknessScore}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

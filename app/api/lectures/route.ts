@@ -10,6 +10,7 @@ import {
   requireString,
 } from '@/lib/validators';
 import Lecture from '@/models/Lecture';
+import { syncLectureRevisionSchedule } from '@/lib/revision';
 
 function toClientStatus(status: 'pending' | 'in_progress' | 'completed') {
   return status === 'in_progress' ? 'in-progress' : status;
@@ -57,6 +58,14 @@ export async function POST(req: Request) {
         'in_progress'
       ),
       needsRevision: requireBoolean(body.needsRevision, 'needsRevision'),
+    });
+
+    await syncLectureRevisionSchedule({
+      userId: user.id,
+      lectureId: lecture._id,
+      subjectId: lecture.subjectId,
+      topicId: lecture.topicId,
+      needsRevision: lecture.needsRevision,
     });
 
     return {

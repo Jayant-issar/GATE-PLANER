@@ -7,6 +7,9 @@ import Mistake from '@/models/Mistake';
 import MockTest from '@/models/MockTest';
 import PYQProgress from '@/models/PYQProgress';
 import WeeklyTask from '@/models/WeeklyTask';
+import RevisionSchedule from '@/models/RevisionSchedule';
+import Subject from '@/models/Subject';
+import Topic from '@/models/Topic';
 
 export async function GET() {
   return withApiHandler(async () => {
@@ -19,7 +22,7 @@ export async function GET() {
     endOfToday.setHours(23, 59, 59, 999);
     const heatmapStart = subDays(startOfToday, 83);
 
-    const [todayTasks, lectures, pyqTopics, mistakes, mockTests, heatmapTasks] = await Promise.all([
+    const [todayTasks, lectures, pyqTopics, mistakes, mockTests, heatmapTasks, revisions, subjects, topics] = await Promise.all([
       WeeklyTask.find({
         userId: user.id,
         scheduledFor: { $gte: startOfToday, $lte: endOfToday },
@@ -34,6 +37,9 @@ export async function GET() {
         userId: user.id,
         scheduledFor: { $gte: heatmapStart, $lte: endOfToday },
       }).lean(),
+      RevisionSchedule.find({ userId: user.id }).lean(),
+      Subject.find({ userId: user.id }).lean(),
+      Topic.find({ userId: user.id }).lean(),
     ]);
 
     const heatmap = Array.from({ length: 84 }).map((_, index) => {
@@ -48,6 +54,33 @@ export async function GET() {
         hours: Number(hours.toFixed(1)),
       };
     });
+
+    const weakTopics = pyqTopics
+      .map((topic) => {
+        const attempted = topic.solvedQuestions;
+        const correct = topic.correctQuestions;
+        const inaccuracy = attempted > 0 ? (1 - correct / attempted) * 100 : 0;
+        const mistakeCount = mistakes.filter(
+          (mistake) => mistake.topicId?.toString() === topic.topicId.toString()
+        ).length;
+        const normalizedMistakeCount = Math.min(mistakeCount * 20, 100);
+        const averageTimePerQuestion =
+          attempted > 0 ? topic.totalTimeMinutes / attempted : 0;
+        const timePenalty = averageTimePerQuestion > 3 ? Math.min((averageTimePerQuestion - 3) * 20, 100) : 0;
+        const weaknessScore =
+          0.5 * inaccuracy + 0.3 * normalizedMistakeCount + 0.2 * timePenalty;
+        const topicInfo = topics.find((item) => item._id.toString() === topic.topicId.toString());
+        const subjectInfo = subjects.find((item) => item._id.toString() === topic.subjectId.toString());
+
+        return {
+          topicId: topic.topicId.toString(),
+          topicName: topicInfo?.name ?? 'Unknown Topic',
+          subjectName: subjectInfo?.name ?? 'Unknown Subject',
+          weaknessScore: Number(weaknessScore.toFixed(1)),
+        };
+      })
+      .sort((a, b) => b.weaknessScore - a.weaknessScore)
+      .slice(0, 3);
 
     return {
       todayTasks: todayTasks.map((task) => ({
@@ -78,6 +111,12 @@ export async function GET() {
         name: test.name,
         marksObtained: test.marksObtained,
       })),
+      revisions: revisions.map((revision) => ({
+        id: revision._id.toString(),
+        nextRevisionDate: revision.nextRevisionDate.toISOString(),
+        status: revision.status,
+      })),
+      weakTopics,
       heatmap,
     };
   });
