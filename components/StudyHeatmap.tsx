@@ -9,10 +9,10 @@ interface HeatmapEntry {
 
 export function StudyHeatmap({ data }: { data: HeatmapEntry[] }) {
   const getLevelColor = (hours: number) => {
-    if (hours <= 0) return 'bg-slate-100';
-    if (hours <= 2) return 'bg-indigo-200';
-    if (hours <= 4) return 'bg-indigo-400';
-    return 'bg-indigo-600';
+    if (hours <= 0) return 'bg-white/70';
+    if (hours <= 2) return 'bg-amber-200';
+    if (hours <= 4) return 'bg-sky-300';
+    return 'bg-slate-800';
   };
 
   const weeks = Array.from({ length: 12 }).map((_, weekIndex) =>
@@ -20,16 +20,16 @@ export function StudyHeatmap({ data }: { data: HeatmapEntry[] }) {
   );
 
   return (
-    <div className="rounded-xl border bg-white p-6 shadow-sm">
+    <div className="lofi-panel rounded-[1.8rem] p-6">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-semibold text-slate-900">Study Heatmap</h2>
         <div className="flex items-center space-x-2 text-xs text-slate-500">
           <span>Less</span>
           <div className="flex space-x-1">
-            <div className="h-3 w-3 rounded-sm bg-slate-100" />
-            <div className="h-3 w-3 rounded-sm bg-indigo-200" />
-            <div className="h-3 w-3 rounded-sm bg-indigo-400" />
-            <div className="h-3 w-3 rounded-sm bg-indigo-600" />
+            <div className="h-3 w-3 rounded-sm bg-white/70" />
+            <div className="h-3 w-3 rounded-sm bg-amber-200" />
+            <div className="h-3 w-3 rounded-sm bg-sky-300" />
+            <div className="h-3 w-3 rounded-sm bg-slate-800" />
           </div>
           <span>More</span>
         </div>

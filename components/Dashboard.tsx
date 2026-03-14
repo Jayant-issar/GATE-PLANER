@@ -182,30 +182,59 @@ export function Dashboard() {
   }, [todayTasks]);
 
   if (loading) {
-    return <div className="animate-pulse h-full w-full bg-slate-50 rounded-xl" />;
+    return <div className="lofi-panel h-full w-full animate-pulse rounded-[2rem]" />;
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
-          <p className="text-sm text-slate-500">Here&apos;s your backend-synced study overview.</p>
+    <div className="space-y-8">
+      <section className="relative overflow-hidden rounded-[2rem] border border-white/70 bg-[radial-gradient(circle_at_top_left,_rgba(253,230,138,0.42),_transparent_25%),radial-gradient(circle_at_bottom_right,_rgba(125,211,252,0.26),_transparent_26%),linear-gradient(135deg,_rgba(255,252,247,0.95),_rgba(240,249,255,0.92)_52%,_rgba(236,253,245,0.9))] p-8 shadow-[0_28px_80px_rgba(15,23,42,0.1)]">
+        <div className="absolute -left-8 top-8 h-32 w-32 rounded-full bg-amber-200/40 blur-3xl" />
+        <div className="absolute right-8 top-0 h-40 w-40 rounded-full bg-sky-200/35 blur-3xl" />
+        <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="inline-flex rounded-full bg-white/70 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.2em] text-slate-500">
+              Daily Broadcast
+            </div>
+            <h1 className="mt-4 text-4xl font-semibold tracking-tight text-slate-900">Dashboard</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-600">
+              Your synced study room: tasks, focused time, revision load, weak spots, and recent momentum.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <div className="lofi-chip flex items-center space-x-2 rounded-full px-4 py-2">
+              <Target className="h-5 w-5 text-emerald-500" />
+              <span className="text-sm font-medium text-slate-700">{todayProgress}% Daily Goal</span>
+            </div>
+            <div className="lofi-chip flex items-center space-x-2 rounded-full px-4 py-2">
+              <Timer className="h-5 w-5 text-sky-600" />
+              <span className="text-sm font-medium text-slate-700">{todayStudyHours}h Studied Today</span>
+            </div>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-3">
-          <div className="flex items-center space-x-2 rounded-lg bg-white px-4 py-2 shadow-sm border border-slate-200">
-            <Target className="h-5 w-5 text-emerald-500" />
-            <span className="text-sm font-medium text-slate-600">{todayProgress}% Daily Goal</span>
-          </div>
-          <div className="flex items-center space-x-2 rounded-lg bg-white px-4 py-2 shadow-sm border border-slate-200">
-            <Timer className="h-5 w-5 text-indigo-500" />
-            <span className="text-sm font-medium text-slate-600">{todayStudyHours}h Studied Today</span>
-          </div>
+      </section>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="lofi-panel rounded-[1.6rem] p-5">
+          <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Focus Time</p>
+          <p className="mt-3 text-3xl font-semibold text-slate-900">{todayStudyHours}h</p>
+          <p className="mt-2 text-sm text-slate-500">Today&apos;s logged study time.</p>
+        </div>
+        <div className="lofi-panel rounded-[1.6rem] p-5">
+          <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Open Tasks</p>
+          <p className="mt-3 text-3xl font-semibold text-slate-900">
+            {todayTasks.filter((task) => !task.completed).length}
+          </p>
+          <p className="mt-2 text-sm text-slate-500">Tasks still waiting for today.</p>
+        </div>
+        <div className="lofi-panel rounded-[1.6rem] p-5">
+          <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Pending Review</p>
+          <p className="mt-3 text-3xl font-semibold text-slate-900">{needsReviewMistakes.length}</p>
+          <p className="mt-2 text-sm text-slate-500">Mistakes currently marked for review.</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="rounded-xl border bg-white p-6 shadow-sm flex flex-col">
+        <div className="lofi-panel flex flex-col rounded-[1.8rem] p-6">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-lg font-semibold text-slate-900">Today&apos;s Plan</h2>
             <span className="text-sm text-slate-500">
@@ -213,31 +242,31 @@ export function Dashboard() {
             </span>
           </div>
           {todayTasks.length === 0 ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-center py-8">
-              <CheckCircle2 className="h-12 w-12 text-slate-200 mb-3" />
-              <p className="text-slate-500 text-sm">No tasks scheduled for today.</p>
-              <p className="text-slate-400 text-xs mt-1">Add tasks in the Weekly Planner.</p>
+            <div className="flex flex-1 flex-col items-center justify-center py-8 text-center">
+              <CheckCircle2 className="mb-3 h-12 w-12 text-slate-200" />
+              <p className="text-sm text-slate-500">No tasks scheduled for today.</p>
+              <p className="mt-1 text-xs text-slate-400">Add tasks in the Weekly Planner.</p>
             </div>
           ) : (
-            <div className="space-y-3 overflow-y-auto flex-1 pr-2">
+            <div className="flex-1 space-y-3 overflow-y-auto pr-2">
               {todayTasks.map((task) => (
                 <div
                   key={task.id}
-                  className={`flex items-center justify-between rounded-lg border p-3 ${
-                    task.completed ? 'bg-slate-50' : 'bg-white hover:border-indigo-200'
+                  className={`flex items-center justify-between rounded-[1rem] border p-3 transition ${
+                    task.completed ? 'border-slate-100 bg-slate-50/80' : 'bg-white/85 hover:border-slate-300'
                   }`}
                 >
                   <div className="flex items-center space-x-3">
                     {task.completed ? (
-                      <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0" />
+                      <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" />
                     ) : (
-                      <Circle className="h-5 w-5 text-slate-300 shrink-0" />
+                      <Circle className="h-5 w-5 shrink-0 text-slate-300" />
                     )}
-                    <span className={task.completed ? 'text-slate-500 line-through text-sm' : 'text-slate-700 text-sm'}>
+                    <span className={task.completed ? 'text-sm text-slate-500 line-through' : 'text-sm text-slate-700'}>
                       {task.title}
                     </span>
                   </div>
-                  <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600 capitalize">
+                  <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium capitalize text-slate-600">
                     {task.type.replace('_', ' ')}
                   </span>
                 </div>
@@ -246,64 +275,62 @@ export function Dashboard() {
           )}
         </div>
 
-        <div className="rounded-xl border bg-white p-6 shadow-sm">
+        <div className="lofi-panel rounded-[1.8rem] p-6">
           <h2 className="mb-6 text-lg font-semibold text-slate-900">Overall Progress</h2>
           <div className="space-y-6">
             <div>
               <div className="mb-2 flex justify-between text-sm">
-                <span className="font-medium text-slate-700 flex items-center">
-                  <Video className="h-4 w-4 mr-2 text-indigo-500" />
+                <span className="flex items-center font-medium text-slate-700">
+                  <Video className="mr-2 h-4 w-4 text-slate-800" />
                   Lectures ({lectureStats.completed}/{lectureStats.total})
                 </span>
                 <span className="text-slate-500">{lectureStats.percentage}%</span>
               </div>
               <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
-                <div className="h-full rounded-full bg-indigo-500" style={{ width: `${lectureStats.percentage}%` }} />
+                <div className="h-full rounded-full bg-slate-900" style={{ width: `${lectureStats.percentage}%` }} />
               </div>
             </div>
             <div>
               <div className="mb-2 flex justify-between text-sm">
-                <span className="font-medium text-slate-700 flex items-center">
-                  <FileQuestion className="h-4 w-4 mr-2 text-emerald-500" />
+                <span className="flex items-center font-medium text-slate-700">
+                  <FileQuestion className="mr-2 h-4 w-4 text-emerald-500" />
                   PYQs Solved ({pyqStats.solved}/{pyqStats.total})
                 </span>
                 <span className="text-slate-500">{pyqStats.percentage}%</span>
               </div>
               <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
-                <div className="h-full rounded-full bg-emerald-500" style={{ width: `${pyqStats.percentage}%` }} />
+                <div className="h-full rounded-full bg-emerald-400" style={{ width: `${pyqStats.percentage}%` }} />
               </div>
             </div>
             <div>
               <div className="mb-2 flex justify-between text-sm">
-                <span className="font-medium text-slate-700 flex items-center">
-                  <Repeat className="h-4 w-4 mr-2 text-amber-500" />
+                <span className="flex items-center font-medium text-slate-700">
+                  <Repeat className="mr-2 h-4 w-4 text-amber-400" />
                   Pending Revisions
                 </span>
                 <span className="text-slate-500">{revisionStats.total} Topics</span>
               </div>
               <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
-                <div className="h-full rounded-full bg-amber-500" style={{ width: revisionStats.total > 0 ? '100%' : '0%' }} />
+                <div className="h-full rounded-full bg-amber-300" style={{ width: revisionStats.total > 0 ? '100%' : '0%' }} />
               </div>
             </div>
           </div>
         </div>
 
-        <div className="rounded-xl border bg-white p-6 shadow-sm">
-          <div className="mb-4 flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <AlertTriangle className="h-5 w-5 text-amber-500" />
-              <h2 className="text-lg font-semibold text-slate-900">Weak Topics</h2>
-            </div>
+        <div className="lofi-panel rounded-[1.8rem] p-6">
+          <div className="mb-4 flex items-center space-x-2">
+            <AlertTriangle className="h-5 w-5 text-amber-500" />
+            <h2 className="text-lg font-semibold text-slate-900">Weak Topics</h2>
           </div>
           {weakTopics.length === 0 ? (
             <div className="text-sm text-slate-500">No weak topics computed yet.</div>
           ) : (
             <div className="space-y-3">
               {weakTopics.map((topic) => (
-                <div key={topic.topicId} className="rounded-lg border border-slate-100 p-3">
+                <div key={topic.topicId} className="rounded-[1rem] border border-slate-100 bg-white/75 p-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-medium text-slate-900 text-sm">{topic.topicName}</p>
+                      <p className="text-sm font-medium text-slate-900">{topic.topicName}</p>
                       <p className="text-xs text-slate-500">{topic.subjectName}</p>
                     </div>
                     <span className="text-sm font-semibold text-rose-600">{topic.weaknessScore}</span>
@@ -320,17 +347,15 @@ export function Dashboard() {
           <StudyHeatmap data={heatmap} />
         </div>
 
-        <div className="rounded-xl border bg-white p-6 shadow-sm">
-          <div className="mb-4 flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <PlayCircle className="h-5 w-5 text-indigo-500" />
-              <h2 className="text-lg font-semibold text-slate-900">Study Sessions</h2>
-            </div>
+        <div className="lofi-panel rounded-[1.8rem] p-6">
+          <div className="mb-4 flex items-center space-x-2">
+            <PlayCircle className="h-5 w-5 text-sky-500" />
+            <h2 className="text-lg font-semibold text-slate-900">Study Sessions</h2>
           </div>
           {activeStudySession ? (
-            <div className="mb-4 rounded-lg border border-indigo-100 bg-indigo-50 p-3">
-              <p className="text-sm font-medium text-indigo-900">{activeStudySession.title}</p>
-              <p className="text-xs text-indigo-700">
+            <div className="mb-4 rounded-[1rem] border border-sky-100 bg-sky-50/90 p-3">
+              <p className="text-sm font-medium text-sky-950">{activeStudySession.title}</p>
+              <p className="text-xs text-sky-700">
                 Active since {new Date(activeStudySession.startedAt).toLocaleTimeString()}
               </p>
             </div>
@@ -340,7 +365,7 @@ export function Dashboard() {
           ) : (
             <div className="space-y-3">
               {studySessions.slice(0, 4).map((session) => (
-                <div key={session.id} className="rounded-lg border border-slate-100 p-3">
+                <div key={session.id} className="rounded-[1rem] border border-slate-100 bg-white/75 p-3">
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <p className="text-sm font-medium text-slate-900">{session.title}</p>
@@ -348,9 +373,7 @@ export function Dashboard() {
                         {new Date(session.startedAt).toLocaleDateString()}
                       </p>
                     </div>
-                    <span className="text-sm font-semibold text-slate-700">
-                      {session.durationMinutes}m
-                    </span>
+                    <span className="text-sm font-semibold text-slate-700">{session.durationMinutes}m</span>
                   </div>
                 </div>
               ))}
@@ -358,27 +381,27 @@ export function Dashboard() {
           )}
         </div>
 
-        <div className="rounded-xl border bg-white p-6 shadow-sm">
+        <div className="lofi-panel rounded-[1.8rem] p-6">
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <AlertTriangle className="h-5 w-5 text-rose-500" />
               <h2 className="text-lg font-semibold text-slate-900">Needs Review</h2>
             </div>
-            <span className="text-xs font-medium text-rose-600 bg-rose-50 px-2 py-1 rounded-full">
+            <span className="rounded-full bg-rose-50 px-2 py-1 text-xs font-medium text-rose-600">
               {needsReviewMistakes.length} Pending
             </span>
           </div>
           {needsReviewMistakes.length === 0 ? (
-            <div className="text-center py-6 text-sm text-slate-500">No mistakes pending review.</div>
+            <div className="py-6 text-center text-sm text-slate-500">No mistakes pending review.</div>
           ) : (
             <div className="space-y-4">
               {needsReviewMistakes.map((mistake) => {
                 const subject = subjects.find((item) => item.id === mistake.subjectId);
                 return (
-                  <div key={mistake.id} className="flex flex-col border-b pb-3 last:border-0 last:pb-0">
-                    <div className="flex justify-between items-start mb-1">
-                      <p className="font-medium text-slate-800 text-sm line-clamp-1">{mistake.source}</p>
-                      <span className="text-[10px] font-medium text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded capitalize">
+                  <div key={mistake.id} className="flex flex-col border-b border-slate-100 pb-3 last:border-0 last:pb-0">
+                    <div className="mb-1 flex items-start justify-between">
+                      <p className="line-clamp-1 text-sm font-medium text-slate-800">{mistake.source}</p>
+                      <span className="rounded bg-rose-50 px-1.5 py-0.5 text-[10px] font-medium capitalize text-rose-600">
                         {mistake.mistakeType}
                       </span>
                     </div>
@@ -390,13 +413,13 @@ export function Dashboard() {
           )}
         </div>
 
-        <div className="col-span-1 rounded-xl border bg-white p-6 shadow-sm lg:col-span-2">
+        <div className="lofi-panel col-span-1 rounded-[1.8rem] p-6 lg:col-span-2">
           <div className="mb-4 flex items-center space-x-2">
-            <BookOpen className="h-5 w-5 text-indigo-500" />
+            <BookOpen className="h-5 w-5 text-amber-500" />
             <h2 className="text-lg font-semibold text-slate-900">Recent Mock Scores</h2>
           </div>
           {chartData.length === 0 ? (
-            <div className="h-48 w-full flex items-center justify-center text-slate-500 text-sm">
+            <div className="flex h-48 w-full items-center justify-center text-sm text-slate-500">
               No mock test data available yet.
             </div>
           ) : (
@@ -410,9 +433,9 @@ export function Dashboard() {
                   <Line
                     type="monotone"
                     dataKey="score"
-                    stroke="#6366f1"
+                    stroke="#0f172a"
                     strokeWidth={3}
-                    dot={{ r: 4, fill: '#6366f1', strokeWidth: 2, stroke: '#fff' }}
+                    dot={{ r: 4, fill: '#f59e0b', strokeWidth: 2, stroke: '#fff' }}
                     activeDot={{ r: 6 }}
                   />
                 </LineChart>

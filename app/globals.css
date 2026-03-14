@@ -1,1 +1,102 @@
 @import "tailwindcss";
+
+:root {
+  --lofi-cream: #fff9f0;
+  --lofi-sky: #edf7ff;
+  --lofi-mint: #effcf5;
+  --lofi-rose: #fff1f2;
+  --lofi-ink: #1f2937;
+  --lofi-muted: #64748b;
+  --lofi-line: rgba(255, 255, 255, 0.68);
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  color: var(--lofi-ink);
+  background:
+    radial-gradient(circle at top left, rgba(253, 230, 138, 0.34), transparent 24%),
+    radial-gradient(circle at top right, rgba(125, 211, 252, 0.24), transparent 22%),
+    radial-gradient(circle at bottom left, rgba(167, 243, 208, 0.22), transparent 28%),
+    linear-gradient(180deg, #fffaf3 0%, #f4f9ff 56%, #eefbf4 100%);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.6) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.55);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.lofi-shell {
+  background:
+    radial-gradient(circle at top left, rgba(253, 230, 138, 0.24), transparent 22%),
+    radial-gradient(circle at bottom right, rgba(191, 219, 254, 0.28), transparent 24%),
+    linear-gradient(180deg, rgba(255, 251, 245, 0.78), rgba(240, 249, 255, 0.72));
+}
+
+.lofi-panel {
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(255, 252, 247, 0.8));
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(16px);
+}
+
+.lofi-panel-dark {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.95));
+  box-shadow: 0 28px 80px rgba(15, 23, 42, 0.24);
+}
+
+.lofi-chip {
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  backdrop-filter: blur(12px);
+}
+
+.lofi-input {
+  border: 1px solid rgba(203, 213, 225, 0.9);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.lofi-input:focus {
+  outline: none;
+  border-color: rgba(71, 85, 105, 0.75);
+  box-shadow: 0 0 0 4px rgba(191, 219, 254, 0.55);
+}
+
+.lofi-button {
+  background: linear-gradient(135deg, #1e293b, #334155);
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.18);
+}
+
+.lofi-button-soft {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(255, 249, 240, 0.92));
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.06);
+}
+
+.lofi-grid {
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
+  background-size: 22px 22px;
+}

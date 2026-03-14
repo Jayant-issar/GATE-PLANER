@@ -16,10 +16,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider>
       <SyllabusProvider>
-        <div className="flex h-full">
+        <div className="lofi-shell flex h-full">
           <Sidebar />
-          <main className="flex-1 overflow-y-auto p-8">
-            {children}
+          <main className="relative flex-1 overflow-y-auto">
+            <div className="pointer-events-none absolute inset-0 lofi-grid opacity-40" />
+            <div className="relative min-h-full p-6 sm:p-8">
+              {children}
+            </div>
           </main>
         </div>
       </SyllabusProvider>

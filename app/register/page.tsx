@@ -42,18 +42,24 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-12 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md space-y-8 rounded-2xl bg-white p-8 shadow-xl">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-12 sm:px-6 lg:px-8">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(253,230,138,0.35),_transparent_24%),radial-gradient(circle_at_bottom_right,_rgba(125,211,252,0.24),_transparent_22%),linear-gradient(180deg,_#fffaf3,_#f1f7ff_58%,_#eefbf4)]" />
+      <div className="absolute left-10 top-10 h-40 w-40 rounded-full bg-amber-200/40 blur-3xl" />
+      <div className="absolute bottom-10 right-10 h-56 w-56 rounded-full bg-emerald-200/35 blur-3xl" />
+      <div className="lofi-panel relative w-full max-w-md space-y-8 rounded-[2rem] p-8">
         <div className="text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-indigo-100">
-            <BookOpen className="h-6 w-6 text-indigo-600" />
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-slate-900 shadow-lg shadow-slate-900/15">
+            <BookOpen className="h-6 w-6 text-amber-200" />
+          </div>
+          <div className="mt-4 inline-flex rounded-full bg-white/70 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.2em] text-slate-500">
+            New Study Room
           </div>
           <h2 className="mt-6 text-3xl font-bold tracking-tight text-slate-900">
             Create an account
           </h2>
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="mt-2 text-sm leading-6 text-slate-600">
             Or{' '}
-            <Link href="/login" className="font-medium text-indigo-600 hover:text-indigo-500">
+            <Link href="/login" className="font-medium text-slate-900 hover:text-slate-700">
               sign in to your existing account
             </Link>
           </p>
@@ -76,7 +82,7 @@ export default function RegisterPage() {
                 type="text"
                 autoComplete="name"
                 required
-                className="relative block w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 placeholder-slate-500 focus:z-10 focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
+                className="lofi-input relative block w-full rounded-[1rem] px-4 py-3 text-slate-900 placeholder-slate-400 sm:text-sm"
                 placeholder="Full Name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -90,7 +96,7 @@ export default function RegisterPage() {
                 type="email"
                 autoComplete="email"
                 required
-                className="relative block w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 placeholder-slate-500 focus:z-10 focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
+                className="lofi-input relative block w-full rounded-[1rem] px-4 py-3 text-slate-900 placeholder-slate-400 sm:text-sm"
                 placeholder="Email address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -104,7 +110,7 @@ export default function RegisterPage() {
                 type="password"
                 autoComplete="new-password"
                 required
-                className="relative block w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 placeholder-slate-500 focus:z-10 focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
+                className="lofi-input relative block w-full rounded-[1rem] px-4 py-3 text-slate-900 placeholder-slate-400 sm:text-sm"
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -116,7 +122,7 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={loading}
-              className="group relative flex w-full justify-center rounded-lg border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-70"
+              className="lofi-button group relative flex w-full justify-center rounded-[1rem] border border-transparent px-4 py-3 text-sm font-medium text-white disabled:opacity-70"
             >
               {loading ? 'Creating account...' : 'Create account'}
             </button>

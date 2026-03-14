@@ -37,11 +37,17 @@ export function Sidebar() {
   const { data: session } = useSession();
 
   return (
-    <div className="flex h-full w-64 flex-col border-r bg-white">
-      <div className="flex h-16 items-center border-b px-6">
-        <h1 className="text-xl font-bold text-indigo-600">GATE CS Planner</h1>
+    <div className="lofi-panel m-4 flex h-[calc(100%-2rem)] w-72 flex-col overflow-hidden rounded-[2rem]">
+      <div className="border-b border-white/70 px-6 py-6">
+        <div className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.2em] text-white">
+          Lofi Planner
+        </div>
+        <h1 className="mt-4 text-2xl font-semibold tracking-tight text-slate-900">GATE CS Planner</h1>
+        <p className="mt-2 text-sm leading-6 text-slate-500">
+          Anime-night focus room for planning, revision, and long study loops.
+        </p>
       </div>
-      <nav className="flex-1 space-y-1 px-3 py-4">
+      <nav className="flex-1 space-y-1 px-4 py-5">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
@@ -50,17 +56,17 @@ export function Sidebar() {
             <Link
               key={item.name}
               href={item.href}
-              className={`group flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+              className={`group flex items-center rounded-[1rem] px-4 py-3 text-sm font-medium transition ${
                 isActive
-                  ? 'bg-indigo-50 text-indigo-600'
-                  : 'text-slate-700 hover:bg-slate-50 hover:text-indigo-600'
+                  ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/15'
+                  : 'text-slate-700 hover:bg-white/75 hover:text-slate-900'
               }`}
             >
               <Icon
                 className={`mr-3 h-5 w-5 flex-shrink-0 transition-colors ${
                   isActive
-                    ? 'text-indigo-600'
-                    : 'text-slate-400 group-hover:text-indigo-600'
+                    ? 'text-amber-200'
+                    : 'text-slate-400 group-hover:text-slate-700'
                 }`}
                 aria-hidden="true"
               />
@@ -69,16 +75,16 @@ export function Sidebar() {
           );
         })}
       </nav>
-      <div className="border-t p-4">
-        <div className="flex flex-col space-y-3">
+      <div className="border-t border-white/70 p-4">
+        <div className="rounded-[1.4rem] bg-white/70 p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="flex flex-col">
-              <p className="text-sm font-medium text-slate-700 truncate max-w-[140px]">{session?.user?.name || 'Student'}</p>
-              <p className="text-xs font-medium text-slate-500 truncate max-w-[140px]">{session?.user?.email || 'Target: GATE 2027'}</p>
+              <p className="text-sm font-semibold text-slate-800 truncate max-w-[170px]">{session?.user?.name || 'Student'}</p>
+              <p className="text-xs font-medium text-slate-500 truncate max-w-[170px]">{session?.user?.email || 'Target: GATE 2027'}</p>
             </div>
             <button 
               onClick={() => signOut({ callbackUrl: '/login' })}
-              className="p-1.5 text-slate-400 hover:text-rose-600 rounded-md hover:bg-rose-50 transition-colors"
+              className="rounded-full p-2 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
               title="Sign out"
             >
               <LogOut className="h-4 w-4" />
