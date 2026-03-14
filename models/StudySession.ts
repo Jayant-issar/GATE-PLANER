@@ -2,11 +2,14 @@ import mongoose, { Document, Schema } from 'mongoose';
 
 export interface IStudySession extends Document {
   userId: mongoose.Types.ObjectId;
-  subjectId?: mongoose.Types.ObjectId;
-  topicId?: mongoose.Types.ObjectId;
+  subjectId: mongoose.Types.ObjectId;
+  topicId: mongoose.Types.ObjectId;
   weeklyTaskId?: mongoose.Types.ObjectId;
   title: string;
   notes?: string;
+  studyMinutes: number;
+  breakMinutes: number;
+  totalPeriods: number;
   startedAt: Date;
   endedAt?: Date | null;
   durationMinutes: number;
@@ -25,10 +28,12 @@ const StudySessionSchema = new Schema<IStudySession>(
     subjectId: {
       type: Schema.Types.ObjectId,
       ref: 'Subject',
+      required: true,
     },
     topicId: {
       type: Schema.Types.ObjectId,
       ref: 'Topic',
+      required: true,
     },
     weeklyTaskId: {
       type: Schema.Types.ObjectId,
@@ -42,6 +47,21 @@ const StudySessionSchema = new Schema<IStudySession>(
     notes: {
       type: String,
       trim: true,
+    },
+    studyMinutes: {
+      type: Number,
+      required: true,
+      min: 1,
+    },
+    breakMinutes: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    totalPeriods: {
+      type: Number,
+      required: true,
+      min: 1,
     },
     startedAt: {
       type: Date,
