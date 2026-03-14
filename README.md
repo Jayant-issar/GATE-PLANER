@@ -7,15 +7,13 @@ GATE CS Planner is a Next.js application for managing long-term GATE Computer Sc
 The repository already contains:
 - a working Next.js App Router frontend
 - login and registration backed by NextAuth credentials and MongoDB
-- feature pages for dashboard, weekly planner, lectures, PYQs, mock tests, mistakes, and syllabus
+- Mongo-backed CRUD APIs for all core study-tracking modules
+- authenticated pages for dashboard, weekly planner, syllabus, lectures, PYQs, mock tests, mistakes, revision, analytics, settings, and study sessions
+- dashboard aggregation, weak-topic analytics, revision scheduling, and study-session tracking
+- Dockerized MongoDB for local development
+- Jest route-handler tests that exercise the backend APIs against a Mongo test database
 
-The repository does not yet contain:
-- server-backed CRUD APIs for the study-tracking modules
-- persisted syllabus, planner, lecture, PYQ, mock-test, and mistake data
-- revision, analytics, and settings pages
-- dashboard aggregation from backend data
-
-Right now the app is best described as a frontend MVP with real auth and partial backend scaffolding.
+Right now the app is best described as a Mongo-backed MVP with the main product surfaces implemented and tested.
 
 ## Canonical Architecture
 
@@ -29,7 +27,7 @@ Right now the app is best described as a frontend MVP with real auth and partial
 
 ## Canonical Domain Model
 
-The backend should use the following entities as the source of truth.
+The backend currently uses the following entities as the source of truth.
 
 ### User
 - `name`
@@ -129,38 +127,39 @@ This is the scheduled task entity used by the weekly planner and dashboard.
 
 ### RevisionSchedule
 - `userId`
+- `subjectId`
 - `topicId`
+- `lectureId`
 - `nextRevisionDate`
 - `intervalLevel`
 - `status`
 
-## Delivery Roadmap
+### StudySession
+- `userId`
+- `title`
+- `subjectId`
+- `topicId`
+- `startedAt`
+- `endedAt`
+- `durationMinutes`
+- `notes`
+- `source`
 
-### Phase 1: Backend foundation
-- finalize canonical models
-- add shared API/auth/validation utilities
-- document consistent field names and route expectations
+## Implemented Feature Surface
 
-### Phase 2: Core persistence
-- persist syllabus
-- persist lectures
-- persist weekly tasks
-- connect dashboard to stored planner and lecture data
+- Dashboard with backend aggregates for tasks, revisions, mock tests, study sessions, weak topics, and heatmap data
+- Weekly planner backed by `WeeklyTask`
+- Syllabus management backed by `Subject` and `Topic`
+- Lecture tracking backed by `Lecture`
+- PYQ tracking backed by `PYQProgress`
+- Mock-test tracking backed by `MockTest`
+- Mistake notebook backed by `Mistake`
+- Revision queue backed by `RevisionSchedule`
+- Weak-topic analytics backed by PYQ, mistake, and time-efficiency signals
+- Settings persistence backed by `UserSettings`
+- Study-session logging backed by `StudySession`
 
-### Phase 3: Tracker persistence
-- persist PYQ progress
-- persist mock tests
-- persist mistakes
-- add dashboard aggregation endpoint
-
-### Phase 4: Intelligent workflows
-- revision queue
-- analytics page
-- settings page
-- weak-topic scoring
-- automatic daily plan generation
-
-## Planned API Surface
+## API Surface
 
 ### Auth
 - `POST /api/auth/register`
@@ -203,14 +202,27 @@ This is the scheduled task entity used by the weekly planner and dashboard.
 - `GET /api/revisions`
 - `POST /api/revisions/:id/complete`
 - `GET /api/analytics/weak-topics`
+- `GET /api/settings`
+- `PATCH /api/settings`
+- `GET /api/study-sessions`
+- `POST /api/study-sessions`
+- `PATCH /api/study-sessions/:id`
+- `DELETE /api/study-sessions/:id`
 
-## Immediate Next Build Order
+## Testing
 
-1. Add persistent subject/topic models and APIs.
-2. Rework syllabus state to fetch from the backend instead of `localStorage`.
-3. Add lectures CRUD APIs and wire the lectures page to them.
-4. Add weekly task CRUD APIs and unify planner/dashboard data flow.
-5. Move PYQs, mock tests, and mistakes to the backend.
+Backend coverage is handled with Jest route-handler tests under `tests/`. The current suite covers:
+
+- registration and auth validation
+- subjects and topics CRUD
+- lectures CRUD
+- weekly planner tasks
+- PYQs, mock tests, mistakes, and dashboard aggregation
+- revision scheduling and weak-topic analytics
+- settings persistence
+- study-session lifecycle and dashboard integration
+
+The test suite runs against MongoDB, using the Docker container defined in `docker-compose.yml`.
 
 ## Local Setup
 
@@ -218,3 +230,10 @@ This is the scheduled task entity used by the weekly planner and dashboard.
 2. Start MongoDB with `docker compose up -d mongo`.
 3. Run the app with `npm run dev`.
 4. Run backend API tests with `npm test`.
+
+## Recommended Next Steps
+
+1. Add automatic daily-plan generation from weekly tasks, due revisions, weak topics, and user settings.
+2. Add richer analytics trends over time using study sessions, PYQ accuracy, and mock-test history.
+3. Strengthen API validation with a schema validator such as `zod`.
+4. Add frontend integration tests for end-to-end user flows.
