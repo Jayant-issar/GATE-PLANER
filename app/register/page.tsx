@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { BookOpen, AlertCircle } from 'lucide-react';
+import { toast } from '@/lib/toast';
 
 export default function RegisterPage() {
   const [name, setName] = useState('');
@@ -19,19 +20,30 @@ export default function RegisterPage() {
     setError('');
 
     try {
-      const res = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ name, email, password }),
-      });
+      await toast.promise(
+        (async () => {
+          const res = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ name, email, password }),
+          });
 
-      const data = await res.json();
+          const data = await res.json();
 
-      if (!res.ok) {
-        throw new Error(data.message || 'Something went wrong');
-      }
+          if (!res.ok) {
+            throw new Error(data.message || data.error || 'Something went wrong');
+          }
+
+          return data;
+        })(),
+        {
+          loading: 'Creating your account...',
+          success: 'Account created successfully',
+          error: (message) => message instanceof Error ? message.message : 'Registration failed',
+        }
+      );
 
       router.push('/login');
     } catch (err: any) {

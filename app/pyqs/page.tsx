@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useSyllabus } from '@/context/SyllabusContext';
 import { apiRequest } from '@/lib/client-api';
+import { toast, toastApiError, toastValidation } from '@/lib/toast';
 
 interface TrackedTopic {
   id: string;
@@ -46,6 +47,7 @@ export default function PYQsPage() {
       })
       .catch((error) => {
         console.error('Failed to load tracked PYQs', error);
+        toastApiError(error, 'Failed to load tracked PYQs.');
       })
       .finally(() => {
         setLoading(false);
@@ -100,49 +102,67 @@ export default function PYQsPage() {
   };
 
   const handleAddTopic = async () => {
-    if (!activeSubjectId || !selectedTopicId || newTopicTotal === '') return;
+    if (!activeSubjectId || !selectedTopicId || newTopicTotal === '') {
+      toastValidation('Select a subject, topic, and total question count first.');
+      return;
+    }
 
-    const data = await apiRequest<{ topic: TrackedTopic }>('/api/pyqs', {
-      method: 'POST',
-      body: JSON.stringify({
-        subjectId: activeSubjectId,
-        topicId: selectedTopicId,
-        totalQuestions: Number(newTopicTotal),
-        solved: 0,
-        correct: 0,
-        incorrect: 0,
-        bookmarked: 0,
-        totalTimeMinutes: 0,
-      }),
-    });
+    try {
+      const data = await apiRequest<{ topic: TrackedTopic }>('/api/pyqs', {
+        method: 'POST',
+        body: JSON.stringify({
+          subjectId: activeSubjectId,
+          topicId: selectedTopicId,
+          totalQuestions: Number(newTopicTotal),
+          solved: 0,
+          correct: 0,
+          incorrect: 0,
+          bookmarked: 0,
+          totalTimeMinutes: 0,
+        }),
+      });
 
-    setTrackedTopics((prev) => [...prev, data.topic]);
-    setNewTopicTotal('');
-    setIsTopicModalOpen(false);
+      setTrackedTopics((prev) => [...prev, data.topic]);
+      setNewTopicTotal('');
+      setIsTopicModalOpen(false);
+      toast.success('PYQ topic tracking added');
+    } catch (error) {
+      toastApiError(error, 'Failed to add tracked topic.');
+    }
   };
 
   const handleUpdateTopic = async () => {
     if (!editingTopic) return;
-    const data = await apiRequest<{ topic: TrackedTopic }>(`/api/pyqs/${editingTopic.id}`, {
-      method: 'PATCH',
-      body: JSON.stringify({
-        totalQuestions: editingTopic.totalQuestions,
-        solved: editingTopic.solved,
-        correct: editingTopic.correct,
-        incorrect: editingTopic.incorrect,
-        bookmarked: editingTopic.bookmarked,
-        totalTimeMinutes: 0,
-      }),
-    });
-    setTrackedTopics((prev) => prev.map((topic) => (topic.id === editingTopic.id ? data.topic : topic)));
-    setIsUpdateModalOpen(false);
-    setEditingTopic(null);
+    try {
+      const data = await apiRequest<{ topic: TrackedTopic }>(`/api/pyqs/${editingTopic.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          totalQuestions: editingTopic.totalQuestions,
+          solved: editingTopic.solved,
+          correct: editingTopic.correct,
+          incorrect: editingTopic.incorrect,
+          bookmarked: editingTopic.bookmarked,
+          totalTimeMinutes: 0,
+        }),
+      });
+      setTrackedTopics((prev) => prev.map((topic) => (topic.id === editingTopic.id ? data.topic : topic)));
+      setIsUpdateModalOpen(false);
+      setEditingTopic(null);
+      toast.success('PYQ topic updated');
+    } catch (error) {
+      toastApiError(error, 'Failed to update tracked topic.');
+    }
   };
 
   const handleDeleteTopic = async (id: string) => {
     if (!confirm('Are you sure you want to stop tracking this topic?')) return;
-    await apiRequest<{ deleted: boolean }>(`/api/pyqs/${id}`, { method: 'DELETE' });
-    setTrackedTopics((prev) => prev.filter((topic) => topic.id !== id));
+    try {
+      await apiRequest<{ deleted: boolean }>(`/api/pyqs/${id}`, { method: 'DELETE' });
+      setTrackedTopics((prev) => prev.filter((topic) => topic.id !== id));
+      toast.success('Tracked topic removed');
+    } catch (error) {
+      toastApiError(error, 'Failed to remove tracked topic.');
+    }
   };
 
   if (loading || syllabusLoading) {

@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useSyllabus } from '@/context/SyllabusContext';
 import { apiRequest, getClientErrorMessage } from '@/lib/client-api';
+import { toast, toastApiError, toastValidation } from '@/lib/toast';
 
 interface StudySession {
   id: string;
@@ -215,6 +216,7 @@ export default function StudySessionsPage() {
       .catch((error) => {
         console.error('Failed to load study sessions', error);
         setPageError(getClientErrorMessage(error, 'Failed to load study sessions.'));
+        toastApiError(error, 'Failed to load study sessions.');
       })
       .finally(() => {
         setLoading(false);
@@ -279,6 +281,7 @@ export default function StudySessionsPage() {
     setPageError('');
 
     if (Object.keys(validationErrors).length > 0) {
+      toastValidation(Object.values(validationErrors)[0] ?? 'Complete the session setup first.');
       return;
     }
 
@@ -310,8 +313,10 @@ export default function StudySessionsPage() {
         totalPeriods: 4,
       });
       setFormErrors({});
+      toast.success('Pomodoro session started');
     } catch (error) {
       setPageError(getClientErrorMessage(error, 'Failed to start the study session.'));
+      toastApiError(error, 'Failed to start the study session.');
     } finally {
       setIsSubmitting(false);
     }
@@ -336,8 +341,10 @@ export default function StudySessionsPage() {
         prev.map((session) => (session.id === activeSession.id ? data.session : session))
       );
       setActiveSession(null);
+      toast.info('Study session ended');
     } catch (error) {
       setPageError(getClientErrorMessage(error, 'Failed to stop the active session.'));
+      toastApiError(error, 'Failed to stop the active session.');
     }
   };
 
@@ -353,8 +360,10 @@ export default function StudySessionsPage() {
       if (activeSession?.id === id) {
         setActiveSession(null);
       }
+      toast.success('Study session deleted');
     } catch (error) {
       setPageError(getClientErrorMessage(error, 'Failed to delete the study session.'));
+      toastApiError(error, 'Failed to delete the study session.');
     }
   };
 

@@ -24,6 +24,7 @@ import {
 } from 'recharts';
 import { useSyllabus } from '@/context/SyllabusContext';
 import { apiRequest } from '@/lib/client-api';
+import { toastApiError } from '@/lib/toast';
 import { StudyHeatmap } from './StudyHeatmap';
 
 interface DashboardTask {
@@ -133,6 +134,7 @@ export function Dashboard() {
       })
       .catch((error) => {
         console.error('Failed to load dashboard', error);
+        toastApiError(error, 'Failed to load dashboard.');
       })
       .finally(() => {
         setLoading(false);

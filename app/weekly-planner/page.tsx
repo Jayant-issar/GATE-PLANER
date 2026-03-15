@@ -22,6 +22,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { apiRequest } from '@/lib/client-api';
+import { toast, toastApiError, toastValidation } from '@/lib/toast';
 
 type TaskType = 'lecture' | 'pyq' | 'revision' | 'mock_test';
 
@@ -80,6 +81,7 @@ export default function WeeklyPlanner() {
     loadTasks()
       .catch((error) => {
         console.error('Failed to load weekly tasks', error);
+        toastApiError(error, 'Failed to load weekly tasks.');
       })
       .finally(() => {
         setLoading(false);
@@ -87,48 +89,66 @@ export default function WeeklyPlanner() {
   }, [loadTasks]);
 
   const toggleTask = async (task: Task) => {
-    const data = await apiRequest<{ task: Task }>(`/api/weekly-tasks/${task.id}`, {
-      method: 'PATCH',
-      body: JSON.stringify({
-        completed: !task.completed,
-        date: task.date,
-      }),
-    });
+    try {
+      const data = await apiRequest<{ task: Task }>(`/api/weekly-tasks/${task.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          completed: !task.completed,
+          date: task.date,
+        }),
+      });
 
-    const key = data.task.date.slice(0, 10);
-    setTasks((prev) => ({
-      ...prev,
-      [key]: (prev[key] ?? []).map((item) => (item.id === task.id ? data.task : item)),
-    }));
+      const key = data.task.date.slice(0, 10);
+      setTasks((prev) => ({
+        ...prev,
+        [key]: (prev[key] ?? []).map((item) => (item.id === task.id ? data.task : item)),
+      }));
+      toast.success(data.task.completed ? 'Task completed' : 'Task marked pending');
+    } catch (error) {
+      toastApiError(error, 'Failed to update task.');
+    }
   };
 
   const deleteTask = async (dateKey: string, taskId: string) => {
-    await apiRequest<{ deleted: boolean }>(`/api/weekly-tasks/${taskId}`, { method: 'DELETE' });
-    setTasks((prev) => ({
-      ...prev,
-      [dateKey]: (prev[dateKey] ?? []).filter((task) => task.id !== taskId),
-    }));
+    try {
+      await apiRequest<{ deleted: boolean }>(`/api/weekly-tasks/${taskId}`, { method: 'DELETE' });
+      setTasks((prev) => ({
+        ...prev,
+        [dateKey]: (prev[dateKey] ?? []).filter((task) => task.id !== taskId),
+      }));
+      toast.success('Task deleted');
+    } catch (error) {
+      toastApiError(error, 'Failed to delete task.');
+    }
   };
 
   const addTask = async (dateKey: string) => {
     const title = newTaskInputs[dateKey]?.trim();
-    if (!title) return;
+    if (!title) {
+      toastValidation('Enter a task title first.');
+      return;
+    }
 
     const type = newTaskTypes[dateKey] ?? 'lecture';
-    const data = await apiRequest<{ task: Task }>('/api/weekly-tasks', {
-      method: 'POST',
-      body: JSON.stringify({
-        title,
-        type,
-        date: dateKey,
-      }),
-    });
+    try {
+      const data = await apiRequest<{ task: Task }>('/api/weekly-tasks', {
+        method: 'POST',
+        body: JSON.stringify({
+          title,
+          type,
+          date: dateKey,
+        }),
+      });
 
-    setTasks((prev) => ({
-      ...prev,
-      [dateKey]: [...(prev[dateKey] ?? []), data.task],
-    }));
-    setNewTaskInputs((prev) => ({ ...prev, [dateKey]: '' }));
+      setTasks((prev) => ({
+        ...prev,
+        [dateKey]: [...(prev[dateKey] ?? []), data.task],
+      }));
+      setNewTaskInputs((prev) => ({ ...prev, [dateKey]: '' }));
+      toast.success('Task added');
+    } catch (error) {
+      toastApiError(error, 'Failed to add task.');
+    }
   };
 
   const weekProgress = useMemo(() => {

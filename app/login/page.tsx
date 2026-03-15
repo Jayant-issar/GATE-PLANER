@@ -5,6 +5,7 @@ import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { BookOpen, AlertCircle } from 'lucide-react';
+import { toast } from '@/lib/toast';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -18,18 +19,34 @@ export default function LoginPage() {
     setLoading(true);
     setError('');
 
-    const res = await signIn('credentials', {
-      redirect: false,
-      email,
-      password,
-    });
+    try {
+      await toast.promise(
+        (async () => {
+          const res = await signIn('credentials', {
+            redirect: false,
+            email,
+            password,
+          });
 
-    if (res?.error) {
-      setError('Invalid email or password');
-      setLoading(false);
-    } else {
+          if (res?.error) {
+            throw new Error('Invalid email or password');
+          }
+
+          return res;
+        })(),
+        {
+          loading: 'Signing you in...',
+          success: 'Signed in successfully',
+          error: 'Invalid email or password',
+        }
+      );
+
       router.push('/');
       router.refresh();
+    } catch {
+      setError('Invalid email or password');
+    } finally {
+      setLoading(false);
     }
   };
 

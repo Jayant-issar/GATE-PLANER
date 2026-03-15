@@ -19,6 +19,7 @@ import {
 import { format } from 'date-fns';
 import { useSyllabus } from '@/context/SyllabusContext';
 import { apiRequest } from '@/lib/client-api';
+import { toast, toastApiError, toastValidation } from '@/lib/toast';
 
 type MistakeType = 'calculation' | 'conceptual' | 'silly' | 'formula' | 'misread' | 'time';
 
@@ -72,6 +73,7 @@ export default function MistakesPage() {
       })
       .catch((error) => {
         console.error('Failed to load mistakes', error);
+        toastApiError(error, 'Failed to load mistakes.');
       })
       .finally(() => {
         setLoading(false);
@@ -142,40 +144,59 @@ export default function MistakesPage() {
   };
 
   const handleSave = async () => {
-    if (!formData.source || !formData.subjectId || !formData.whatWentWrong || !formData.learning) return;
-
-    if (editingMistake) {
-      const data = await apiRequest<{ mistake: Mistake }>(`/api/mistakes/${editingMistake.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(formData),
-      });
-      setMistakes((prev) => prev.map((mistake) => (mistake.id === editingMistake.id ? data.mistake : mistake)));
-    } else {
-      const data = await apiRequest<{ mistake: Mistake }>('/api/mistakes', {
-        method: 'POST',
-        body: JSON.stringify(formData),
-      });
-      setMistakes((prev) => [data.mistake, ...prev]);
+    if (!formData.source || !formData.subjectId || !formData.whatWentWrong || !formData.learning) {
+      toastValidation('Fill in the required mistake details first.');
+      return;
     }
 
-    setIsModalOpen(false);
+    try {
+      if (editingMistake) {
+        const data = await apiRequest<{ mistake: Mistake }>(`/api/mistakes/${editingMistake.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify(formData),
+        });
+        setMistakes((prev) => prev.map((mistake) => (mistake.id === editingMistake.id ? data.mistake : mistake)));
+        toast.success('Mistake updated');
+      } else {
+        const data = await apiRequest<{ mistake: Mistake }>('/api/mistakes', {
+          method: 'POST',
+          body: JSON.stringify(formData),
+        });
+        setMistakes((prev) => [data.mistake, ...prev]);
+        toast.success('Mistake logged');
+      }
+
+      setIsModalOpen(false);
+    } catch (error) {
+      toastApiError(error, editingMistake ? 'Failed to update mistake.' : 'Failed to log mistake.');
+    }
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this mistake log?')) return;
-    await apiRequest<{ deleted: boolean }>(`/api/mistakes/${id}`, { method: 'DELETE' });
-    setMistakes((prev) => prev.filter((mistake) => mistake.id !== id));
+    try {
+      await apiRequest<{ deleted: boolean }>(`/api/mistakes/${id}`, { method: 'DELETE' });
+      setMistakes((prev) => prev.filter((mistake) => mistake.id !== id));
+      toast.success('Mistake deleted');
+    } catch (error) {
+      toastApiError(error, 'Failed to delete mistake.');
+    }
   };
 
   const toggleStatus = async (mistake: Mistake) => {
-    const data = await apiRequest<{ mistake: Mistake }>(`/api/mistakes/${mistake.id}`, {
-      method: 'PATCH',
-      body: JSON.stringify({
-        ...mistake,
-        status: mistake.status === 'resolved' ? 'needs_review' : 'resolved',
-      }),
-    });
-    setMistakes((prev) => prev.map((item) => (item.id === mistake.id ? data.mistake : item)));
+    try {
+      const data = await apiRequest<{ mistake: Mistake }>(`/api/mistakes/${mistake.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          ...mistake,
+          status: mistake.status === 'resolved' ? 'needs_review' : 'resolved',
+        }),
+      });
+      setMistakes((prev) => prev.map((item) => (item.id === mistake.id ? data.mistake : item)));
+      toast.info(data.mistake.status === 'resolved' ? 'Mistake marked resolved' : 'Mistake marked for review');
+    } catch (error) {
+      toastApiError(error, 'Failed to update mistake status.');
+    }
   };
 
   const activeSubjectTopics = subjects.find((subject) => subject.id === formData.subjectId)?.topics ?? [];

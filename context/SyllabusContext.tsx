@@ -2,6 +2,7 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { apiRequest } from '@/lib/client-api';
+import { toast, toastApiError } from '@/lib/toast';
 
 export interface Topic {
   id: string;
@@ -42,6 +43,7 @@ export function SyllabusProvider({ children }: { children: React.ReactNode }) {
     refreshSubjects()
       .catch((error) => {
         console.error('Failed to load syllabus', error);
+        toastApiError(error, 'Failed to load syllabus.');
       })
       .finally(() => {
         setLoading(false);
@@ -54,11 +56,13 @@ export function SyllabusProvider({ children }: { children: React.ReactNode }) {
       body: JSON.stringify({ name }),
     });
     setSubjects(data.subjects);
+    toast.success('Subject added');
   };
 
   const removeSubject = async (id: string) => {
     await apiRequest<{ deleted: boolean }>(`/api/subjects/${id}`, { method: 'DELETE' });
     setSubjects((prev) => prev.filter((subject) => subject.id !== id));
+    toast.success('Subject removed');
   };
 
   const addTopic = async (subjectId: string, topicName: string) => {
@@ -77,6 +81,7 @@ export function SyllabusProvider({ children }: { children: React.ReactNode }) {
           : subject
       )
     );
+    toast.success('Topic added');
   };
 
   const removeTopic = async (subjectId: string, topicId: string) => {
@@ -88,6 +93,7 @@ export function SyllabusProvider({ children }: { children: React.ReactNode }) {
           : subject
       )
     );
+    toast.success('Topic removed');
   };
 
   return (
