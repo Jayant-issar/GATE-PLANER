@@ -45,8 +45,17 @@ export default function WeeklyPlanner() {
   const gateDate = new Date('2027-02-01');
   const weeksToGate = differenceInWeeks(gateDate, new Date());
 
-  const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
-  const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
+  const { weekStart, weekEnd, weekStartKey, weekEndKey } = useMemo(() => {
+    const start = startOfWeek(currentDate, { weekStartsOn: 1 });
+    const end = endOfWeek(currentDate, { weekStartsOn: 1 });
+
+    return {
+      weekStart: start,
+      weekEnd: end,
+      weekStartKey: formatDateKey(start),
+      weekEndKey: formatDateKey(end),
+    };
+  }, [currentDate]);
 
   const weekDays = useMemo(
     () => Array.from({ length: 7 }).map((_, index) => addDays(weekStart, index)),
@@ -55,7 +64,7 @@ export default function WeeklyPlanner() {
 
   const loadTasks = useCallback(async () => {
     const data = await apiRequest<{ tasks: Task[] }>(
-      `/api/weekly-tasks?from=${formatDateKey(weekStart)}&to=${formatDateKey(weekEnd)}`
+      `/api/weekly-tasks?from=${weekStartKey}&to=${weekEndKey}`
     );
     const grouped = data.tasks.reduce<Record<string, Task[]>>((accumulator, task) => {
       const key = task.date.slice(0, 10);
@@ -63,7 +72,7 @@ export default function WeeklyPlanner() {
       return accumulator;
     }, {});
     setTasks(grouped);
-  }, [weekEnd, weekStart]);
+  }, [weekEndKey, weekStartKey]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
