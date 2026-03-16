@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import {
   AlertCircle,
@@ -13,25 +13,19 @@ import {
   Sparkles,
   Trash2,
 } from 'lucide-react';
-import { useSyllabus } from '@/context/SyllabusContext';
-import { apiRequest, getClientErrorMessage } from '@/lib/client-api';
-import { toast, toastApiError, toastValidation } from '@/lib/toast';
+import {
+  useDeleteStudySessionMutation,
+  useStartStudySessionMutation,
+  useStopStudySessionMutation,
+  useStudySessionsQuery,
+  type StudySession,
+} from '@/features/study-sessions/hooks';
+import { type Subject, useSubjectsQuery } from '@/features/syllabus/hooks';
+import { getClientErrorMessage } from '@/lib/client-api';
+import { toastValidation } from '@/lib/toast';
 
-interface StudySession {
-  id: string;
-  subjectId: string;
-  topicId: string;
-  title: string;
-  notes: string;
-  studyMinutes: number;
-  breakMinutes: number;
-  totalPeriods: number;
-  startedAt: string;
-  endedAt: string | null;
-  durationMinutes: number;
-  subjectName?: string;
-  topicName?: string;
-}
+const EMPTY_SUBJECTS: Subject[] = [];
+const EMPTY_STUDY_SESSIONS: StudySession[] = [];
 
 interface StudySessionFormData {
   title: string;
@@ -180,10 +174,14 @@ function getSessionTitle(formData: StudySessionFormData, subjectName?: string, t
 }
 
 export default function StudySessionsPage() {
-  const { subjects, loading: syllabusLoading } = useSyllabus();
-  const [sessions, setSessions] = useState<StudySession[]>([]);
-  const [activeSession, setActiveSession] = useState<StudySession | null>(null);
-  const [loading, setLoading] = useState(true);
+  const subjectsQuery = useSubjectsQuery();
+  const sessionsQuery = useStudySessionsQuery();
+  const startStudySessionMutation = useStartStudySessionMutation();
+  const stopStudySessionMutation = useStopStudySessionMutation();
+  const deleteStudySessionMutation = useDeleteStudySessionMutation();
+  const subjects = subjectsQuery.data ?? EMPTY_SUBJECTS;
+  const sessions = sessionsQuery.data?.sessions ?? EMPTY_STUDY_SESSIONS;
+  const activeSession = sessionsQuery.data?.activeSession ?? null;
   const [formData, setFormData] = useState<StudySessionFormData>({
     title: '',
     subjectId: '',
@@ -194,39 +192,23 @@ export default function StudySessionsPage() {
     totalPeriods: 4,
   });
   const [formErrors, setFormErrors] = useState<FormErrors>({});
-  const [pageError, setPageError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [now, setNow] = useState(Date.now());
+  const [actionError, setActionError] = useState('');
+  const [now, setNow] = useState(0);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
   }, []);
 
-  const loadSessions = useCallback(async () => {
-    const data = await apiRequest<{ sessions: StudySession[]; activeSession: StudySession | null }>(
-      '/api/study-sessions'
-    );
-    setSessions(data.sessions);
-    setActiveSession(data.activeSession);
-  }, []);
-
-  useEffect(() => {
-    loadSessions()
-      .catch((error) => {
-        console.error('Failed to load study sessions', error);
-        setPageError(getClientErrorMessage(error, 'Failed to load study sessions.'));
-        toastApiError(error, 'Failed to load study sessions.');
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, [loadSessions]);
-
   const selectedSubject = subjects.find((subject) => subject.id === formData.subjectId) ?? null;
   const activeSubjectTopics = selectedSubject?.topics ?? [];
   const selectedTopic =
     activeSubjectTopics.find((topic) => topic.id === formData.topicId) ?? null;
+  const pageError =
+    actionError ||
+    (sessionsQuery.error
+      ? getClientErrorMessage(sessionsQuery.error, 'Failed to load study sessions.')
+      : '');
 
   const pomodoroState = useMemo(
     () => getPomodoroState(activeSession, now),
@@ -278,48 +260,44 @@ export default function StudySessionsPage() {
   const startSession = async () => {
     const validationErrors = validateStudySessionForm(formData);
     setFormErrors(validationErrors);
-    setPageError('');
+    setActionError('');
 
     if (Object.keys(validationErrors).length > 0) {
       toastValidation(Object.values(validationErrors)[0] ?? 'Complete the session setup first.');
       return;
     }
 
-    setIsSubmitting(true);
-
-    try {
-      const data = await apiRequest<{ session: StudySession }>('/api/study-sessions', {
-        method: 'POST',
-        body: JSON.stringify({
-          title: formData.title.trim() || undefined,
-          subjectId: formData.subjectId,
-          topicId: formData.topicId,
-          notes: formData.notes || undefined,
-          studyMinutes: formData.studyMinutes,
-          breakMinutes: formData.breakMinutes,
-          totalPeriods: formData.totalPeriods,
-        }),
-      });
-
-      setActiveSession(data.session);
-      setSessions((prev) => [data.session, ...prev]);
-      setFormData({
-        title: '',
-        subjectId: '',
-        topicId: '',
-        notes: '',
-        studyMinutes: 25,
-        breakMinutes: 5,
-        totalPeriods: 4,
-      });
-      setFormErrors({});
-      toast.success('Pomodoro session started');
-    } catch (error) {
-      setPageError(getClientErrorMessage(error, 'Failed to start the study session.'));
-      toastApiError(error, 'Failed to start the study session.');
-    } finally {
-      setIsSubmitting(false);
-    }
+    startStudySessionMutation.mutate(
+      {
+        title: formData.title.trim() || sessionTitlePreview,
+        subjectId: formData.subjectId,
+        topicId: formData.topicId,
+        notes: formData.notes || '',
+        studyMinutes: formData.studyMinutes,
+        breakMinutes: formData.breakMinutes,
+        totalPeriods: formData.totalPeriods,
+        startedAt: new Date().toISOString(),
+        subjectName: selectedSubject?.name,
+        topicName: selectedTopic?.name,
+      },
+      {
+        onSuccess: () => {
+          setFormData({
+            title: '',
+            subjectId: '',
+            topicId: '',
+            notes: '',
+            studyMinutes: 25,
+            breakMinutes: 5,
+            totalPeriods: 4,
+          });
+          setFormErrors({});
+        },
+        onError: (error) => {
+          setActionError(getClientErrorMessage(error, 'Failed to start the study session.'));
+        },
+      }
+    );
   };
 
   const stopSession = async () => {
@@ -327,25 +305,15 @@ export default function StudySessionsPage() {
       return;
     }
 
-    try {
-      setPageError('');
-      const data = await apiRequest<{ session: StudySession }>(
-        `/api/study-sessions/${activeSession.id}`,
-        {
-          method: 'PATCH',
-          body: JSON.stringify({ action: 'stop' }),
-        }
-      );
-
-      setSessions((prev) =>
-        prev.map((session) => (session.id === activeSession.id ? data.session : session))
-      );
-      setActiveSession(null);
-      toast.info('Study session ended');
-    } catch (error) {
-      setPageError(getClientErrorMessage(error, 'Failed to stop the active session.'));
-      toastApiError(error, 'Failed to stop the active session.');
-    }
+    setActionError('');
+    stopStudySessionMutation.mutate(
+      { id: activeSession.id },
+      {
+        onError: (error) => {
+          setActionError(getClientErrorMessage(error, 'Failed to stop the active session.'));
+        },
+      }
+    );
   };
 
   const deleteSession = async (id: string) => {
@@ -353,21 +321,18 @@ export default function StudySessionsPage() {
       return;
     }
 
-    try {
-      setPageError('');
-      await apiRequest<{ deleted: boolean }>(`/api/study-sessions/${id}`, { method: 'DELETE' });
-      setSessions((prev) => prev.filter((session) => session.id !== id));
-      if (activeSession?.id === id) {
-        setActiveSession(null);
+    setActionError('');
+    deleteStudySessionMutation.mutate(
+      { id },
+      {
+        onError: (error) => {
+          setActionError(getClientErrorMessage(error, 'Failed to delete the study session.'));
+        },
       }
-      toast.success('Study session deleted');
-    } catch (error) {
-      setPageError(getClientErrorMessage(error, 'Failed to delete the study session.'));
-      toastApiError(error, 'Failed to delete the study session.');
-    }
+    );
   };
 
-  if (loading || syllabusLoading) {
+  if (sessionsQuery.isLoading || subjectsQuery.isLoading) {
     return (
       <div className="rounded-[2rem] border border-white/60 bg-white/70 p-8 text-sm text-slate-600 shadow-[0_24px_70px_rgba(15,23,42,0.08)] backdrop-blur">
         Tuning the room ambience and loading your focus sessions...
@@ -639,11 +604,11 @@ export default function StudySessionsPage() {
             <button
               type="button"
               onClick={startSession}
-              disabled={Boolean(activeSession) || isSubmitting}
+              disabled={Boolean(activeSession) || startStudySessionMutation.isPending}
               className="inline-flex items-center justify-center gap-2 rounded-[1.2rem] bg-slate-900 px-5 py-3 text-sm font-medium text-white shadow-lg shadow-slate-900/20 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400"
             >
               <PlayCircle className="h-4 w-4" />
-              {isSubmitting ? 'Opening focus room...' : 'Start Pomodoro Session'}
+              {startStudySessionMutation.isPending ? 'Opening focus room...' : 'Start Pomodoro Session'}
             </button>
           </div>
         </div>

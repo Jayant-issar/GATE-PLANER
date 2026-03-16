@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   AlertCircle,
   AlertTriangle,
@@ -17,25 +17,19 @@ import {
   X,
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { useSyllabus } from '@/context/SyllabusContext';
-import { apiRequest } from '@/lib/client-api';
-import { toast, toastApiError, toastValidation } from '@/lib/toast';
+import {
+  type Mistake,
+  type MistakeType,
+  useCreateMistakeMutation,
+  useDeleteMistakeMutation,
+  useMistakesQuery,
+  useUpdateMistakeMutation,
+} from '@/features/mistakes/hooks';
+import { type Subject, useSubjectsQuery } from '@/features/syllabus/hooks';
+import { toastValidation } from '@/lib/toast';
 
-type MistakeType = 'calculation' | 'conceptual' | 'silly' | 'formula' | 'misread' | 'time';
-
-interface Mistake {
-  id: string;
-  date: string;
-  source: string;
-  subjectId: string;
-  topicId: string;
-  questionDescription: string;
-  mistakeType: MistakeType;
-  whatWentWrong: string;
-  learning: string;
-  isRepeated: boolean;
-  status: 'needs_review' | 'resolved';
-}
+const EMPTY_SUBJECTS: Subject[] = [];
+const EMPTY_MISTAKES: Mistake[] = [];
 
 const MISTAKE_TYPES: { value: MistakeType; label: string; color: string }[] = [
   { value: 'conceptual', label: 'Conceptual Gap', color: 'bg-rose-100 text-rose-700' },
@@ -47,9 +41,13 @@ const MISTAKE_TYPES: { value: MistakeType; label: string; color: string }[] = [
 ];
 
 export default function MistakesPage() {
-  const { subjects } = useSyllabus();
-  const [mistakes, setMistakes] = useState<Mistake[]>([]);
-  const [loading, setLoading] = useState(true);
+  const subjectsQuery = useSubjectsQuery();
+  const mistakesQuery = useMistakesQuery();
+  const createMistakeMutation = useCreateMistakeMutation();
+  const updateMistakeMutation = useUpdateMistakeMutation();
+  const deleteMistakeMutation = useDeleteMistakeMutation();
+  const subjects = subjectsQuery.data ?? EMPTY_SUBJECTS;
+  const mistakes = mistakesQuery.data ?? EMPTY_MISTAKES;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingMistake, setEditingMistake] = useState<Mistake | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -65,20 +63,6 @@ export default function MistakesPage() {
     isRepeated: false,
     status: 'needs_review' as 'needs_review' | 'resolved',
   });
-
-  useEffect(() => {
-    apiRequest<{ mistakes: Mistake[] }>('/api/mistakes')
-      .then((data) => {
-        setMistakes(data.mistakes);
-      })
-      .catch((error) => {
-        console.error('Failed to load mistakes', error);
-        toastApiError(error, 'Failed to load mistakes.');
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, []);
 
   const stats = useMemo(() => {
     const total = mistakes.length;
@@ -149,60 +133,41 @@ export default function MistakesPage() {
       return;
     }
 
-    try {
-      if (editingMistake) {
-        const data = await apiRequest<{ mistake: Mistake }>(`/api/mistakes/${editingMistake.id}`, {
-          method: 'PATCH',
-          body: JSON.stringify(formData),
-        });
-        setMistakes((prev) => prev.map((mistake) => (mistake.id === editingMistake.id ? data.mistake : mistake)));
-        toast.success('Mistake updated');
-      } else {
-        const data = await apiRequest<{ mistake: Mistake }>('/api/mistakes', {
-          method: 'POST',
-          body: JSON.stringify(formData),
-        });
-        setMistakes((prev) => [data.mistake, ...prev]);
-        toast.success('Mistake logged');
-      }
-
-      setIsModalOpen(false);
-    } catch (error) {
-      toastApiError(error, editingMistake ? 'Failed to update mistake.' : 'Failed to log mistake.');
+    if (editingMistake) {
+      updateMistakeMutation.mutate(
+        { ...editingMistake, ...formData },
+        {
+          onSuccess: () => setIsModalOpen(false),
+        }
+      );
+      return;
     }
+
+    createMistakeMutation.mutate(formData, {
+      onSuccess: () => setIsModalOpen(false),
+    });
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this mistake log?')) return;
-    try {
-      await apiRequest<{ deleted: boolean }>(`/api/mistakes/${id}`, { method: 'DELETE' });
-      setMistakes((prev) => prev.filter((mistake) => mistake.id !== id));
-      toast.success('Mistake deleted');
-    } catch (error) {
-      toastApiError(error, 'Failed to delete mistake.');
-    }
+    deleteMistakeMutation.mutate({ id });
   };
 
   const toggleStatus = async (mistake: Mistake) => {
-    try {
-      const data = await apiRequest<{ mistake: Mistake }>(`/api/mistakes/${mistake.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          ...mistake,
-          status: mistake.status === 'resolved' ? 'needs_review' : 'resolved',
-        }),
-      });
-      setMistakes((prev) => prev.map((item) => (item.id === mistake.id ? data.mistake : item)));
-      toast.info(data.mistake.status === 'resolved' ? 'Mistake marked resolved' : 'Mistake marked for review');
-    } catch (error) {
-      toastApiError(error, 'Failed to update mistake status.');
-    }
+    updateMistakeMutation.mutate({
+      ...mistake,
+      status: mistake.status === 'resolved' ? 'needs_review' : 'resolved',
+    });
   };
 
   const activeSubjectTopics = subjects.find((subject) => subject.id === formData.subjectId)?.topics ?? [];
 
-  if (loading) {
+  if (mistakesQuery.isLoading || subjectsQuery.isLoading) {
     return <div className="rounded-xl border bg-white p-6 shadow-sm text-slate-500">Loading mistakes...</div>;
+  }
+
+  if (mistakesQuery.isError || subjectsQuery.isError) {
+    return <div className="rounded-xl border bg-white p-6 shadow-sm text-rose-600">Failed to load mistakes.</div>;
   }
 
   return (

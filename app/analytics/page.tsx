@@ -1,64 +1,46 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { AlertTriangle, BarChart3, Target, TimerReset } from 'lucide-react';
-import { apiRequest } from '@/lib/client-api';
-
-interface DashboardData {
-  lectures: { status: string; needsRevision: boolean }[];
-  pyqTopics: { totalQuestions: number; solvedQuestions: number }[];
-  mistakes: { status: string }[];
-  mockTests: { marksObtained: number }[];
-  revisions?: { status: string }[];
-}
-
-interface WeakTopic {
-  topicId: string;
-  topicName: string;
-  subjectId: string;
-  subjectName: string;
-  weaknessScore: number;
-  accuracy: number;
-  mistakeCount: number;
-  averageTimePerQuestion: number;
-}
+import { useWeakTopicsQuery } from '@/features/analytics/hooks';
+import { useDashboardQuery } from '@/features/dashboard/hooks';
 
 export default function AnalyticsPage() {
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [weakTopics, setWeakTopics] = useState<WeakTopic[]>([]);
-
-  useEffect(() => {
-    apiRequest<DashboardData>('/api/dashboard').then(setData);
-    apiRequest<{ weakTopics: WeakTopic[] }>('/api/analytics/weak-topics').then((response) => {
-      setWeakTopics(response.weakTopics);
-    });
-  }, []);
+  const dashboardQuery = useDashboardQuery();
+  const weakTopicsQuery = useWeakTopicsQuery();
+  const data = dashboardQuery.data;
+  const weakTopics = weakTopicsQuery.data ?? [];
 
   const metrics = useMemo(() => {
     if (!data) return null;
     const lectureCompletion =
       data.lectures.length > 0
-        ? Math.round((data.lectures.filter((lecture) => lecture.status === 'completed').length / data.lectures.length) * 100)
-        : 0;
-    const pyqCoverage =
-      data.pyqTopics.reduce((sum, topic) => sum + topic.totalQuestions, 0) > 0
         ? Math.round(
-            (data.pyqTopics.reduce((sum, topic) => sum + topic.solvedQuestions, 0) /
-              data.pyqTopics.reduce((sum, topic) => sum + topic.totalQuestions, 0)) *
+            (data.lectures.filter((lecture) => lecture.status === 'completed').length /
+              data.lectures.length) *
               100
           )
         : 0;
+    const totalQuestions = data.pyqTopics.reduce((sum, topic) => sum + topic.totalQuestions, 0);
+    const solvedQuestions = data.pyqTopics.reduce((sum, topic) => sum + topic.solvedQuestions, 0);
+    const pyqCoverage = totalQuestions > 0 ? Math.round((solvedQuestions / totalQuestions) * 100) : 0;
     const avgMock =
       data.mockTests.length > 0
         ? (data.mockTests.reduce((sum, test) => sum + test.marksObtained, 0) / data.mockTests.length).toFixed(1)
         : '0.0';
-    const reviewLoad = data.revisions?.filter((revision) => revision.status === 'overdue').length
-      ?? data.mistakes.filter((mistake) => mistake.status === 'needs_review').length;
+    const reviewLoad =
+      data.revisions.filter((revision) => revision.status === 'overdue').length ||
+      data.mistakes.filter((mistake) => mistake.status === 'needs_review').length;
+
     return { lectureCompletion, pyqCoverage, avgMock, reviewLoad };
   }, [data]);
 
-  if (!metrics) {
+  if (dashboardQuery.isLoading || weakTopicsQuery.isLoading) {
     return <div className="rounded-xl border bg-white p-6 shadow-sm text-slate-500">Loading analytics...</div>;
+  }
+
+  if (!metrics || dashboardQuery.isError || weakTopicsQuery.isError) {
+    return <div className="rounded-xl border bg-white p-6 shadow-sm text-rose-600">Failed to load analytics.</div>;
   }
 
   return (

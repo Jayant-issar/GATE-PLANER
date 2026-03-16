@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   BarChart3,
   Bookmark,
@@ -13,25 +13,28 @@ import {
   X,
   XCircle,
 } from 'lucide-react';
-import { useSyllabus } from '@/context/SyllabusContext';
-import { apiRequest } from '@/lib/client-api';
-import { toast, toastApiError, toastValidation } from '@/lib/toast';
+import {
+  type TrackedTopic,
+  useCreatePyqMutation,
+  useDeletePyqMutation,
+  usePyqsQuery,
+  useUpdatePyqMutation,
+} from '@/features/pyqs/hooks';
+import { type Subject, useSubjectsQuery } from '@/features/syllabus/hooks';
+import { toastValidation } from '@/lib/toast';
 
-interface TrackedTopic {
-  id: string;
-  topicId: string;
-  subjectId: string;
-  totalQuestions: number;
-  solved: number;
-  correct: number;
-  incorrect: number;
-  bookmarked: number;
-}
+const EMPTY_SUBJECTS: Subject[] = [];
+const EMPTY_TRACKED_TOPICS: TrackedTopic[] = [];
 
 export default function PYQsPage() {
-  const { subjects, loading: syllabusLoading } = useSyllabus();
-  const [trackedTopics, setTrackedTopics] = useState<TrackedTopic[]>([]);
-  const [loading, setLoading] = useState(true);
+  const subjectsQuery = useSubjectsQuery();
+  const pyqsQuery = usePyqsQuery();
+  const createPyqMutation = useCreatePyqMutation();
+  const updatePyqMutation = useUpdatePyqMutation();
+  const deletePyqMutation = useDeletePyqMutation();
+  const subjects = subjectsQuery.data ?? EMPTY_SUBJECTS;
+  const trackedTopics = pyqsQuery.data ?? EMPTY_TRACKED_TOPICS;
+
   const [expandedSubject, setExpandedSubject] = useState<string | null>(null);
   const [isTopicModalOpen, setIsTopicModalOpen] = useState(false);
   const [activeSubjectId, setActiveSubjectId] = useState<string>('');
@@ -39,20 +42,6 @@ export default function PYQsPage() {
   const [newTopicTotal, setNewTopicTotal] = useState<number | ''>('');
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [editingTopic, setEditingTopic] = useState<TrackedTopic | null>(null);
-
-  useEffect(() => {
-    apiRequest<{ topics: TrackedTopic[] }>('/api/pyqs')
-      .then((data) => {
-        setTrackedTopics(data.topics);
-      })
-      .catch((error) => {
-        console.error('Failed to load tracked PYQs', error);
-        toastApiError(error, 'Failed to load tracked PYQs.');
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, []);
 
   const trackedSubjectIds = useMemo(
     () => Array.from(new Set(trackedTopics.map((topic) => topic.subjectId))),
@@ -107,66 +96,53 @@ export default function PYQsPage() {
       return;
     }
 
-    try {
-      const data = await apiRequest<{ topic: TrackedTopic }>('/api/pyqs', {
-        method: 'POST',
-        body: JSON.stringify({
-          subjectId: activeSubjectId,
-          topicId: selectedTopicId,
-          totalQuestions: Number(newTopicTotal),
-          solved: 0,
-          correct: 0,
-          incorrect: 0,
-          bookmarked: 0,
-          totalTimeMinutes: 0,
-        }),
-      });
-
-      setTrackedTopics((prev) => [...prev, data.topic]);
-      setNewTopicTotal('');
-      setIsTopicModalOpen(false);
-      toast.success('PYQ topic tracking added');
-    } catch (error) {
-      toastApiError(error, 'Failed to add tracked topic.');
-    }
+    createPyqMutation.mutate(
+      {
+        subjectId: activeSubjectId,
+        topicId: selectedTopicId,
+        totalQuestions: Number(newTopicTotal),
+        solved: 0,
+        correct: 0,
+        incorrect: 0,
+        bookmarked: 0,
+        totalTimeMinutes: 0,
+      },
+      {
+        onSuccess: () => {
+          setNewTopicTotal('');
+          setIsTopicModalOpen(false);
+        },
+      }
+    );
   };
 
   const handleUpdateTopic = async () => {
     if (!editingTopic) return;
-    try {
-      const data = await apiRequest<{ topic: TrackedTopic }>(`/api/pyqs/${editingTopic.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          totalQuestions: editingTopic.totalQuestions,
-          solved: editingTopic.solved,
-          correct: editingTopic.correct,
-          incorrect: editingTopic.incorrect,
-          bookmarked: editingTopic.bookmarked,
-          totalTimeMinutes: 0,
-        }),
-      });
-      setTrackedTopics((prev) => prev.map((topic) => (topic.id === editingTopic.id ? data.topic : topic)));
-      setIsUpdateModalOpen(false);
-      setEditingTopic(null);
-      toast.success('PYQ topic updated');
-    } catch (error) {
-      toastApiError(error, 'Failed to update tracked topic.');
-    }
+    updatePyqMutation.mutate(
+      {
+        ...editingTopic,
+        totalTimeMinutes: 0,
+      },
+      {
+        onSuccess: () => {
+          setIsUpdateModalOpen(false);
+          setEditingTopic(null);
+        },
+      }
+    );
   };
 
   const handleDeleteTopic = async (id: string) => {
     if (!confirm('Are you sure you want to stop tracking this topic?')) return;
-    try {
-      await apiRequest<{ deleted: boolean }>(`/api/pyqs/${id}`, { method: 'DELETE' });
-      setTrackedTopics((prev) => prev.filter((topic) => topic.id !== id));
-      toast.success('Tracked topic removed');
-    } catch (error) {
-      toastApiError(error, 'Failed to remove tracked topic.');
-    }
+    deletePyqMutation.mutate({ id });
   };
 
-  if (loading || syllabusLoading) {
+  if (pyqsQuery.isLoading || subjectsQuery.isLoading) {
     return <div className="rounded-xl border bg-white p-6 shadow-sm text-slate-500">Loading PYQ tracker...</div>;
+  }
+
+  if (pyqsQuery.isError || subjectsQuery.isError) {
+    return <div className="rounded-xl border bg-white p-6 shadow-sm text-rose-600">Failed to load PYQ tracker.</div>;
   }
 
   return (

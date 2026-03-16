@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { 
   PlayCircle, 
   CheckCircle2, 
@@ -17,23 +17,28 @@ import {
   Edit2,
   Trash2
 } from 'lucide-react';
-import { useSyllabus } from '@/context/SyllabusContext';
-import { apiRequest } from '@/lib/client-api';
+import {
+  type Lecture,
+  useCreateLectureMutation,
+  useDeleteLectureMutation,
+  useLecturesQuery,
+  useUpdateLectureMutation,
+} from '@/features/lectures/hooks';
+import { type Subject, useSubjectsQuery } from '@/features/syllabus/hooks';
+import { toastValidation } from '@/lib/toast';
 
-interface Lecture {
-  id: string;
-  subjectId: string;
-  title: string;
-  duration: number; // in minutes
-  status: 'completed' | 'in-progress' | 'pending';
-  needsRevision: boolean;
-}
+const EMPTY_SUBJECTS: Subject[] = [];
+const EMPTY_LECTURES: Lecture[] = [];
 
 export default function LecturesPage() {
-  const { subjects } = useSyllabus();
-  
-  const [lectures, setLectures] = useState<Lecture[]>([]);
-  const [loading, setLoading] = useState(true);
+  const subjectsQuery = useSubjectsQuery();
+  const lecturesQuery = useLecturesQuery();
+  const createLectureMutation = useCreateLectureMutation();
+  const updateLectureMutation = useUpdateLectureMutation();
+  const deleteLectureMutation = useDeleteLectureMutation();
+  const subjects = subjectsQuery.data ?? EMPTY_SUBJECTS;
+  const lectures = lecturesQuery.data ?? EMPTY_LECTURES;
+
   const [selectedSubject, setSelectedSubject] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -49,19 +54,6 @@ export default function LecturesPage() {
   const [formDuration, setFormDuration] = useState<number | ''>('');
   const [formStatus, setFormStatus] = useState<'completed' | 'in-progress' | 'pending'>('pending');
   const [formNeedsRevision, setFormNeedsRevision] = useState(false);
-
-  useEffect(() => {
-    apiRequest<{ lectures: Lecture[] }>('/api/lectures')
-      .then((data) => {
-        setLectures(data.lectures);
-      })
-      .catch((error) => {
-        console.error('Failed to load lectures', error);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, []);
 
   // Calculate progress for subject cards
   const subjectProgress = useMemo(() => {
@@ -121,40 +113,38 @@ export default function LecturesPage() {
   };
 
   const handleSaveLecture = async () => {
-    if (!formTitle.trim() || !formSubjectId || formDuration === '') return;
+    if (!formTitle.trim() || !formSubjectId || formDuration === '') {
+      toastValidation('Fill in title, subject, and duration first.');
+      return;
+    }
+
+    const input = {
+      title: formTitle.trim(),
+      subjectId: formSubjectId,
+      topicId: '',
+      duration: Number(formDuration),
+      status: formStatus,
+      needsRevision: formNeedsRevision,
+    };
 
     if (editingLecture) {
-      const data = await apiRequest<{ lecture: Lecture }>(`/api/lectures/${editingLecture.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          title: formTitle.trim(),
-          subjectId: formSubjectId,
-          duration: Number(formDuration),
-          status: formStatus,
-          needsRevision: formNeedsRevision,
-        }),
-      });
-      setLectures(lectures.map((lecture) => (lecture.id === editingLecture.id ? data.lecture : lecture)));
-    } else {
-      const data = await apiRequest<{ lecture: Lecture }>('/api/lectures', {
-        method: 'POST',
-        body: JSON.stringify({
-          title: formTitle.trim(),
-          subjectId: formSubjectId,
-          duration: Number(formDuration),
-          status: formStatus,
-          needsRevision: formNeedsRevision,
-        }),
-      });
-      setLectures([data.lecture, ...lectures]);
+      updateLectureMutation.mutate(
+        { id: editingLecture.id, ...input },
+        {
+          onSuccess: () => setIsModalOpen(false),
+        }
+      );
+      return;
     }
-    setIsModalOpen(false);
+
+    createLectureMutation.mutate(input, {
+      onSuccess: () => setIsModalOpen(false),
+    });
   };
 
   const handleDeleteLecture = async (id: string) => {
     if (confirm('Are you sure you want to delete this lecture?')) {
-      await apiRequest<{ deleted: boolean }>(`/api/lectures/${id}`, { method: 'DELETE' });
-      setLectures(lectures.filter(l => l.id !== id));
+      deleteLectureMutation.mutate({ id });
     }
   };
 
@@ -162,15 +152,15 @@ export default function LecturesPage() {
     const lecture = lectures.find((item) => item.id === id);
     if (!lecture) return;
 
-    const data = await apiRequest<{ lecture: Lecture }>(`/api/lectures/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ needsRevision: !lecture.needsRevision }),
-    });
-    setLectures(lectures.map((item) => (item.id === id ? data.lecture : item)));
+    updateLectureMutation.mutate({ id, needsRevision: !lecture.needsRevision });
   };
 
-  if (loading) {
+  if (lecturesQuery.isLoading || subjectsQuery.isLoading) {
     return <div className="rounded-xl border bg-white p-6 shadow-sm text-slate-500">Loading lectures...</div>;
+  }
+
+  if (lecturesQuery.isError || subjectsQuery.isError) {
+    return <div className="rounded-xl border bg-white p-6 shadow-sm text-rose-600">Failed to load lectures.</div>;
   }
 
   return (

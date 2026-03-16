@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import {
   AlertTriangle,
   BookOpen,
@@ -22,124 +22,40 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { useSyllabus } from '@/context/SyllabusContext';
-import { apiRequest } from '@/lib/client-api';
-import { toastApiError } from '@/lib/toast';
+import {
+  type DashboardData,
+  useDashboardQuery,
+} from '@/features/dashboard/hooks';
+import { type Subject, useSubjectsQuery } from '@/features/syllabus/hooks';
 import { StudyHeatmap } from './StudyHeatmap';
 
-interface DashboardTask {
-  id: string;
-  title: string;
-  type: string;
-  completed: boolean;
-}
-
-interface DashboardLecture {
-  id: string;
-  status: string;
-  needsRevision: boolean;
-}
-
-interface DashboardPYQ {
-  id: string;
-  totalQuestions: number;
-  solvedQuestions: number;
-}
-
-interface DashboardMistake {
-  id: string;
-  source: string;
-  status: string;
-  subjectId: string;
-  mistakeType: string;
-}
-
-interface DashboardMockTest {
-  id: string;
-  name: string;
-  marksObtained: number;
-}
-
-interface DashboardRevision {
-  id: string;
-  nextRevisionDate: string;
-  status: string;
-}
-
-interface DashboardWeakTopic {
-  topicId: string;
-  topicName: string;
-  subjectName: string;
-  weaknessScore: number;
-}
-
-interface DashboardStudySession {
-  id: string;
-  title: string;
-  startedAt: string;
-  endedAt: string | null;
-  durationMinutes: number;
-}
-
-interface HeatmapEntry {
-  date: string;
-  hours: number;
-}
+const EMPTY_SUBJECTS: Subject[] = [];
+const EMPTY_TASKS: DashboardData['todayTasks'] = [];
+const EMPTY_LECTURES: DashboardData['lectures'] = [];
+const EMPTY_PYQS: DashboardData['pyqTopics'] = [];
+const EMPTY_MISTAKES: DashboardData['mistakes'] = [];
+const EMPTY_MOCK_TESTS: DashboardData['mockTests'] = [];
+const EMPTY_REVISIONS: DashboardData['revisions'] = [];
+const EMPTY_WEAK_TOPICS: DashboardData['weakTopics'] = [];
+const EMPTY_STUDY_SESSIONS: DashboardData['studySessions'] = [];
+const EMPTY_HEATMAP: DashboardData['heatmap'] = [];
 
 export function Dashboard() {
-  const { subjects } = useSyllabus();
-  const [loading, setLoading] = useState(true);
-  const [todayTasks, setTodayTasks] = useState<DashboardTask[]>([]);
-  const [lectures, setLectures] = useState<DashboardLecture[]>([]);
-  const [pyqTopics, setPyqTopics] = useState<DashboardPYQ[]>([]);
-  const [mistakes, setMistakes] = useState<DashboardMistake[]>([]);
-  const [mockTests, setMockTests] = useState<DashboardMockTest[]>([]);
-  const [revisions, setRevisions] = useState<DashboardRevision[]>([]);
-  const [weakTopics, setWeakTopics] = useState<DashboardWeakTopic[]>([]);
-  const [studySessions, setStudySessions] = useState<DashboardStudySession[]>([]);
-  const [todayStudyHours, setTodayStudyHours] = useState(0);
-  const [activeStudySession, setActiveStudySession] = useState<{
-    id: string;
-    title: string;
-    startedAt: string;
-  } | null>(null);
-  const [heatmap, setHeatmap] = useState<HeatmapEntry[]>([]);
-
-  useEffect(() => {
-    apiRequest<{
-      todayTasks: DashboardTask[];
-      lectures: DashboardLecture[];
-      pyqTopics: DashboardPYQ[];
-      mistakes: DashboardMistake[];
-      mockTests: DashboardMockTest[];
-      revisions: DashboardRevision[];
-      studySessions: DashboardStudySession[];
-      todayStudyHours: number;
-      activeStudySession: { id: string; title: string; startedAt: string } | null;
-      weakTopics: DashboardWeakTopic[];
-      heatmap: HeatmapEntry[];
-    }>('/api/dashboard')
-      .then((data) => {
-        setTodayTasks(data.todayTasks);
-        setLectures(data.lectures);
-        setPyqTopics(data.pyqTopics);
-        setMistakes(data.mistakes);
-        setMockTests(data.mockTests);
-        setRevisions(data.revisions);
-        setStudySessions(data.studySessions);
-        setTodayStudyHours(data.todayStudyHours);
-        setActiveStudySession(data.activeStudySession);
-        setWeakTopics(data.weakTopics);
-        setHeatmap(data.heatmap);
-      })
-      .catch((error) => {
-        console.error('Failed to load dashboard', error);
-        toastApiError(error, 'Failed to load dashboard.');
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, []);
+  const subjectsQuery = useSubjectsQuery();
+  const dashboardQuery = useDashboardQuery();
+  const subjects = subjectsQuery.data ?? EMPTY_SUBJECTS;
+  const data = dashboardQuery.data;
+  const todayTasks = data?.todayTasks ?? EMPTY_TASKS;
+  const lectures = data?.lectures ?? EMPTY_LECTURES;
+  const pyqTopics = data?.pyqTopics ?? EMPTY_PYQS;
+  const mistakes = data?.mistakes ?? EMPTY_MISTAKES;
+  const mockTests = data?.mockTests ?? EMPTY_MOCK_TESTS;
+  const revisions = data?.revisions ?? EMPTY_REVISIONS;
+  const weakTopics = data?.weakTopics ?? EMPTY_WEAK_TOPICS;
+  const studySessions = data?.studySessions ?? EMPTY_STUDY_SESSIONS;
+  const todayStudyHours = data?.todayStudyHours ?? 0;
+  const activeStudySession = data?.activeStudySession ?? null;
+  const heatmap = data?.heatmap ?? EMPTY_HEATMAP;
 
   const lectureStats = useMemo(() => {
     const total = lectures.length;
@@ -183,8 +99,12 @@ export function Dashboard() {
     return total > 0 ? Math.round((completed / total) * 100) : 0;
   }, [todayTasks]);
 
-  if (loading) {
+  if (dashboardQuery.isLoading || subjectsQuery.isLoading) {
     return <div className="lofi-panel h-full w-full animate-pulse rounded-[2rem]" />;
+  }
+
+  if (dashboardQuery.isError || subjectsQuery.isError) {
+    return <div className="lofi-panel rounded-[2rem] p-8 text-rose-600">Failed to load dashboard.</div>;
   }
 
   return (

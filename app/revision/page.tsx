@@ -1,55 +1,16 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { format } from 'date-fns';
 import { Clock3, RefreshCw } from 'lucide-react';
-import { apiRequest } from '@/lib/client-api';
+import { type RevisionItem, useCompleteRevisionMutation, useRevisionsQuery } from '@/features/revisions/hooks';
 
-interface RevisionItem {
-  id: string;
-  lectureId: string;
-  subjectId: string;
-  topicId: string;
-  lectureTitle: string;
-  subjectName: string;
-  topicName: string;
-  nextRevisionDate: string;
-  intervalLevel: number;
-  status: 'pending' | 'completed' | 'overdue';
-}
+const EMPTY_REVISIONS: RevisionItem[] = [];
 
 export default function RevisionPage() {
-  const [revisions, setRevisions] = useState<RevisionItem[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    apiRequest<{ revisions: RevisionItem[] }>('/api/revisions')
-      .then((data) => setRevisions(data.revisions))
-      .finally(() => setLoading(false));
-  }, []);
-
-  const revisionLectures = useMemo(() => revisions, [revisions]);
-
-  const completeRevision = async (revision: RevisionItem) => {
-    const data = await apiRequest<{ revision: { id: string; nextRevisionDate: string; intervalLevel: number; status: string } }>(
-      `/api/revisions/${revision.id}/complete`,
-      {
-        method: 'POST',
-      }
-    );
-    setRevisions((prev) =>
-      prev.map((item) =>
-        item.id === revision.id
-          ? {
-              ...item,
-              nextRevisionDate: data.revision.nextRevisionDate,
-              intervalLevel: data.revision.intervalLevel,
-              status: data.revision.status as RevisionItem['status'],
-            }
-          : item
-      )
-    );
-  };
+  const revisionsQuery = useRevisionsQuery();
+  const completeRevisionMutation = useCompleteRevisionMutation();
+  const revisions = revisionsQuery.data ?? EMPTY_REVISIONS;
 
   const dueTodayCount = useMemo(() => {
     const today = new Date();
@@ -57,20 +18,27 @@ export default function RevisionPage() {
     return revisions.filter((revision) => new Date(revision.nextRevisionDate) <= today).length;
   }, [revisions]);
 
-  const overdueCount = useMemo(() => revisions.filter((revision) => revision.status === 'overdue').length, [revisions]);
+  const overdueCount = useMemo(
+    () => revisions.filter((revision) => revision.status === 'overdue').length,
+    [revisions]
+  );
 
   const sortedRevisions = useMemo(
     () =>
-      revisionLectures.slice().sort((a, b) => {
+      revisions.slice().sort((a, b) => {
         const overdueDiff = Number(b.status === 'overdue') - Number(a.status === 'overdue');
         if (overdueDiff !== 0) return overdueDiff;
         return new Date(a.nextRevisionDate).getTime() - new Date(b.nextRevisionDate).getTime();
       }),
-    [revisionLectures]
+    [revisions]
   );
 
-  if (loading) {
+  if (revisionsQuery.isLoading) {
     return <div className="rounded-xl border bg-white p-6 shadow-sm text-slate-500">Loading revision queue...</div>;
+  }
+
+  if (revisionsQuery.isError) {
+    return <div className="rounded-xl border bg-white p-6 shadow-sm text-rose-600">Failed to load revision queue.</div>;
   }
 
   return (
@@ -117,8 +85,9 @@ export default function RevisionPage() {
                 </div>
               </div>
               <button
-                onClick={() => completeRevision(revision)}
-                className="inline-flex items-center gap-2 rounded-md bg-amber-100 px-3 py-1.5 text-sm font-medium text-amber-700 hover:bg-amber-200"
+                onClick={() => completeRevisionMutation.mutate({ id: revision.id })}
+                disabled={completeRevisionMutation.isPending}
+                className="inline-flex items-center gap-2 rounded-md bg-amber-100 px-3 py-1.5 text-sm font-medium text-amber-700 hover:bg-amber-200 disabled:opacity-50"
               >
                 <RefreshCw className="h-4 w-4" />
                 Complete Revision

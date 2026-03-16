@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Award,
   BarChart3,
@@ -10,32 +10,26 @@ import {
   XCircle,
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { useSyllabus } from '@/context/SyllabusContext';
-import { apiRequest } from '@/lib/client-api';
+import {
+  type MockTest,
+  type TestType,
+  useCreateMockTestMutation,
+  useDeleteMockTestMutation,
+  useMockTestsQuery,
+} from '@/features/mock-tests/hooks';
+import { type Subject, useSubjectsQuery } from '@/features/syllabus/hooks';
+import { toastValidation } from '@/lib/toast';
 
-type TestType = 'full' | 'partial';
-
-interface MockTest {
-  id: string;
-  name: string;
-  date: string;
-  type: TestType;
-  subjectIds: string[];
-  topicIds: string[];
-  totalMarks: number;
-  marksObtained: number;
-  totalQuestions: number;
-  correctQuestions: number;
-  wrongQuestions: number;
-  unattemptedQuestions: number;
-  accuracy: number;
-  durationMinutes: number;
-}
+const EMPTY_SUBJECTS: Subject[] = [];
+const EMPTY_TESTS: MockTest[] = [];
 
 export default function MockTestsPage() {
-  const { subjects } = useSyllabus();
-  const [tests, setTests] = useState<MockTest[]>([]);
-  const [loading, setLoading] = useState(true);
+  const subjectsQuery = useSubjectsQuery();
+  const mockTestsQuery = useMockTestsQuery();
+  const createMockTestMutation = useCreateMockTestMutation();
+  const deleteMockTestMutation = useDeleteMockTestMutation();
+  const subjects = subjectsQuery.data ?? EMPTY_SUBJECTS;
+  const tests = mockTestsQuery.data ?? EMPTY_TESTS;
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -50,19 +44,6 @@ export default function MockTestsPage() {
     wrongQuestions: 0,
     durationMinutes: 180,
   });
-
-  useEffect(() => {
-    apiRequest<{ tests: MockTest[] }>('/api/mock-tests')
-      .then((data) => {
-        setTests(data.tests);
-      })
-      .catch((error) => {
-        console.error('Failed to load mock tests', error);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, []);
 
   const stats = useMemo(() => {
     if (tests.length === 0) return { avgScore: '0.0', avgAccuracy: '0.0', totalTests: 0, highestScore: '0.0' };
@@ -83,6 +64,11 @@ export default function MockTestsPage() {
   const availableTopics = formData.type === 'partial' && formData.subjectIds.length === 1 ? activeSubject?.topics ?? [] : [];
 
   const handleSaveTest = async () => {
+    if (!formData.name.trim()) {
+      toastValidation('Enter a test name first.');
+      return;
+    }
+
     const correct = Number(formData.correctQuestions);
     const wrong = Number(formData.wrongQuestions);
     const totalQ = Number(formData.totalQuestions);
@@ -90,40 +76,44 @@ export default function MockTestsPage() {
     const attempted = correct + wrong;
     const accuracy = attempted > 0 ? Number(((correct / attempted) * 100).toFixed(1)) : 0;
 
-    const data = await apiRequest<{ test: MockTest }>('/api/mock-tests', {
-      method: 'POST',
-      body: JSON.stringify({
+    createMockTestMutation.mutate(
+      {
         ...formData,
         unattemptedQuestions: unattempted,
         accuracy,
-      }),
-    });
-
-    setTests((prev) => [data.test, ...prev]);
-    setShowForm(false);
-    setFormData({
-      name: '',
-      date: format(new Date(), 'yyyy-MM-dd'),
-      type: 'full',
-      subjectIds: [],
-      topicIds: [],
-      totalMarks: 100,
-      marksObtained: 0,
-      totalQuestions: 65,
-      correctQuestions: 0,
-      wrongQuestions: 0,
-      durationMinutes: 180,
-    });
+      },
+      {
+        onSuccess: () => {
+          setShowForm(false);
+          setFormData({
+            name: '',
+            date: format(new Date(), 'yyyy-MM-dd'),
+            type: 'full',
+            subjectIds: [],
+            topicIds: [],
+            totalMarks: 100,
+            marksObtained: 0,
+            totalQuestions: 65,
+            correctQuestions: 0,
+            wrongQuestions: 0,
+            durationMinutes: 180,
+          });
+        },
+      }
+    );
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this test record?')) return;
-    await apiRequest<{ deleted: boolean }>(`/api/mock-tests/${id}`, { method: 'DELETE' });
-    setTests((prev) => prev.filter((test) => test.id !== id));
+    deleteMockTestMutation.mutate({ id });
   };
 
-  if (loading) {
+  if (mockTestsQuery.isLoading || subjectsQuery.isLoading) {
     return <div className="rounded-xl border bg-white p-6 shadow-sm text-slate-500">Loading mock tests...</div>;
+  }
+
+  if (mockTestsQuery.isError || subjectsQuery.isError) {
+    return <div className="rounded-xl border bg-white p-6 shadow-sm text-rose-600">Failed to load mock tests.</div>;
   }
 
   return (
